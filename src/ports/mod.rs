@@ -85,7 +85,6 @@ pub fn discover_vex_ports() -> Result<()> {
             device_desc.vendor_id(),
             device_desc.product_id());
         
-        let handle = device.open()?;
         
         let conf_desc = device.active_config_descriptor()?;
         for interface in conf_desc.interfaces() {
@@ -96,9 +95,6 @@ pub fn discover_vex_ports() -> Result<()> {
                         continue;
                     }
                 };
-                let desc_str = handle.read_string_descriptor_ascii(di)?;
-                println!("{}", desc_str);
-                println!("{}", d.interface_number());
 
                 // If this is a controller and the first port
                 if  device_desc.product_id() == VEX_V5_CONTROLLER_PID && d.interface_number() == 0 {
@@ -143,7 +139,7 @@ pub fn discover_vex_ports() -> Result<()> {
 
     // Iterate over the known serial interfaces
     for interface in known_serial_interfaces {
-        
+        println!("{:?}", interface);
     }
 
     Ok(())
