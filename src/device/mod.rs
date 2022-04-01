@@ -6,7 +6,7 @@ use crate::ports::{VEXSerialInfo, VEXSerialClass};
 use bitflags::bitflags;
 use anyhow::{Result, anyhow};
 
-pub const SERIAL_TIMEOUT_SECONDS: u64 = 500;
+pub const SERIAL_TIMEOUT_SECONDS: u64 = 5;
 pub const SERIAL_TIMEOUT_NS: u32 = 0;
 
 
