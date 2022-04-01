@@ -110,6 +110,7 @@ impl<T> V5Protocol<T>
             }
         }
 
+        
         // Now that we know we have recieved the header, we need to recieve the rest of the packet.
 
         // First create a vector containing the entirety of the recieved packet
@@ -119,6 +120,8 @@ impl<T> V5Protocol<T>
         let mut b: [u8; 2] = [0; 2];
         self.wraps.read_exact(&mut b)?;
         packet.extend_from_slice(&b);
+
+        
 
         // Get the command byte and the length byte of the packet
         let command = b[0];
@@ -138,7 +141,7 @@ impl<T> V5Protocol<T>
 
         // Read the rest of the payload
         let mut payload: Vec<u8> = vec![0; length as usize];
-        self.wraps.read_exact(&mut payload)?;
+        self.wraps.read(&mut payload)?;
         packet.extend(&payload);
 
         // Try to convert the u8 representation of the command into
@@ -149,7 +152,6 @@ impl<T> V5Protocol<T>
             Some(c) => c,
             None => return Err(anyhow!("Unknown command recieved: {}", command)),
         };
-
 
         // Now return the data
         // We return the command, the actual payload itself, and the entire packet as a whole.
@@ -182,6 +184,7 @@ impl<T> V5Protocol<T>
         
         // Recieve the underlying simple packet
         let data = self.receive_simple()?;
+        
 
         // Verify that this is an extended command
         if data.0 != VEXDeviceCommand::Extended {
@@ -201,9 +204,9 @@ impl<T> V5Protocol<T>
             // Try to convert the ACK byte into an ACK enum member
             // If it fails, we do not recognize the ACK and either the packet is malformed,
             // the device is not a v5 device, or we need to add a new ACK.
-            let ack: VEXACKType = match num::FromPrimitive::from_u8(data.2[0]) {
+            let ack: VEXACKType = match num::FromPrimitive::from_u8(data.1[0]) {
                 Some(c) => c,
-                None => return Err(anyhow!("Unknown ACK recieved: {}", data.2[0])),
+                None => return Err(anyhow!("Unknown ACK recieved: {}", data.1[0])),
             };
 
             // If it is not an ack, then we need to return an error

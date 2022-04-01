@@ -8,7 +8,7 @@ use std::rc::Rc;
 use std::io::{Read, Write};
 use std::cmp;
 
-use super::{V5DeviceVersion, VexProduct, V5ControllerFlags, V5ControllerChannel};
+use super::{V5DeviceVersion, VexProduct, V5ControllerFlags, V5ControllerChannel, VexVID};
 
 
 /// This represents a VEX device connected through a serial port.
@@ -128,15 +128,28 @@ impl<T: Read + Write> VEXDevice<T> {
     /// Executes a program file on the v5 brain's flash.
     pub fn execute_program_file(&self, file_name: String) -> Result<()> {
 
+        // Convert the name to ascii
+        let file_name = file_name.as_ascii_str()?;
+        let mut file_name_bytes: [u8; 24] = [0; 24];
+        for (i, byte) in file_name.as_slice().iter().enumerate() {
+            if (i + 1) > 24 {
+                break;
+            }
+            file_name_bytes[i] = *byte as u8;
+        }
+
+        
+
         // Create the payload
-        let payload = bincode::serialize(&(super::VexVID::SYSTEM as u8, 0u8, file_name.as_ascii_str()?.as_bytes()))?;
+        let payload: (u8, u8, [u8; 24]) = (VexVID::USER as u8, 0, file_name_bytes);
+        let payload = bincode::serialize(&payload)?;
 
         // Borrow protocol as mut
         let mut protocol = self.protocol.borrow_mut();
 
         // Send the command
         protocol.send_extended(VEXDeviceCommand::ExecuteFile, payload)?;
-
+        
         // Read the response
         let _response = protocol.receive_extended(VEXExtPacketChecks::ALL)?;
 
