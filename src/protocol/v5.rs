@@ -36,6 +36,40 @@ impl<T> V5Protocol<T>
         vec![0xc9, 0x32, 0xb8, 0x47, command as u8]
     }
 
+    /// Creates an extended packet.
+    /// This function, unlike the create_simple_packet function
+    /// includes various other features such as length, CRC, etc.
+    fn create_extended_packet(&self, command: VEXDeviceCommand, payload: Vec<u8>) -> Result<Vec<u8>> {
+
+        // Create the packet with the header and command.
+        let mut packet: Vec<u8> = vec![0xc9, 0x32, 0xb8, 0x47, VEXDeviceCommand::Extended as u8, command as u8];
+
+        // Get the payload length as a u16;
+        let payload_length = payload.len() as u16;
+
+        // If the payload_length is larger than 0x80, then we need to push the upper byte first
+        if payload_length > 0x80 {
+            packet.push(((payload_length >> 8) | 0x80) as u8);
+        }
+        // Push the lower byte
+        packet.push((payload_length & 0xff) as u8);
+
+        // Add the payload to the packet
+        packet.extend(payload);
+
+        // Now calculate the CRC16 of the packet
+        let crc = crc::Crc::<u16>::new(&super::VEX_CRC16);
+        let crc_result = crc.checksum(&packet);
+
+        // Add the upper byte of the CRC to the packet
+        packet.push((crc_result >> 8) as u8);
+        // Add the lower byte of the CRC to the packet
+        packet.push((crc_result & 0xff) as u8);
+
+        Ok(packet)
+    }
+    
+
     /// Revieves a simple packet from the vex device.
     pub fn receive_simple(&mut self) -> Result<(VEXDeviceCommand, Vec<u8>, Vec<u8>)> {
         // We need to wait to recieve the header of a packet.
@@ -180,7 +214,22 @@ impl<T> V5Protocol<T>
 
         // Get the payload without the ACK byte
         let payload = Vec::from(&data.1[1..]);
-
         Ok((VEXDeviceCommand::Extended, payload, data.2))
+    }
+
+    /// This function sends an extended packet to the vex device.
+    /// Like other write commands, this returns the number of bytes written.
+    pub fn send_extended(&mut self, command: VEXDeviceCommand, data: Vec<u8>) -> Result<usize> {
+        
+        // Create the extended packet
+        let packet = self.create_extended_packet(command, data)?;
+
+        // Send the packet
+        self.wraps.write_all(&packet)?;
+
+        // Flush the buffer
+        self.wraps.flush()?;
+
+        Ok(packet.len())
     }
 }
