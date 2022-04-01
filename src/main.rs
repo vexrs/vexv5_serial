@@ -1,6 +1,5 @@
 
 use anyhow::Result;
-use std::io::Read;
 use vexv5_serial::*;
 
 

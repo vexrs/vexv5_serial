@@ -1,3 +1,4 @@
+/*
 use crate::ports::{VEXSerialInfo, VEXSerialClass};
 use anyhow::{Result, anyhow};
 use serialport::{SerialPort, Parity};
@@ -5,12 +6,12 @@ use std::{io::{Read, Write}};
 
 
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+
 pub struct VEXDevice {
     system: VEXSerialInfo,
     system_opened: Box<dyn SerialPort>,
     user: Option<VEXSerialInfo>,
-    user_opened: Box<dyn SerialPort>,
+    user_opened: Option<Box<dyn SerialPort>>,
 }
 
 /// Implements a low-level interface to a VEX device.
@@ -82,25 +83,5 @@ impl VEXDevice {
             user_opened: user_port_open,
         })
     }
-
-    /// This is almost like the internal version of new.
-    /// This is used so we can do some generic magic.
-    fn init(system: VEXSerialInfo, system_opened: T, user: Option<VEXSerialInfo>, user_opened: Option<T>) -> VEXDevice<T> {
-        VEXDevice { system, system_opened, user, user_opened }
-    }
 }
-
-impl Read for VEXDevice {
-    fn read(&mut self, buf: &mut [u8]) -> Result<usize, std::io::Error> {
-        let port = match self.user_port {
-            Some(ref port) => port,
-            None => &self.system_port,
-        };
-        let mut port = serialport::new(port.port_info.port_name.clone(), 115200)
-            .parity(serialport::Parity::None)
-            .timeout(std::time::Duration::new(5, 0))
-            .stop_bits(serialport::StopBits::One).open()?;
-
-        port.read(buf)
-    }
-}
+ */

@@ -20,6 +20,7 @@ pub struct VEXSerialInfo {
     pub class: VEXSerialClass,
 }
 
+
 pub fn discover_vex_ports() -> Result<Vec<VEXSerialInfo>> {
     // Get all serial devices
     let available_ports = serialport::available_ports()?;
@@ -51,17 +52,16 @@ pub fn discover_vex_ports() -> Result<Vec<VEXSerialInfo>> {
             vex_ports.push(VEXSerialInfo {
                 port_info: port.clone(),
                 class: {
-                    if vex_ports.len() == 0 {
+                    if vex_ports.is_empty() {
                         VEXSerialClass::System // According to PROS code comments, system is always first
+                    } else if vex_ports.last().unwrap().class == VEXSerialClass::System{
+                        // If the last one was system, then this one is user.
+                        VEXSerialClass::User
                     } else {
-                        if vex_ports.last().unwrap().class == VEXSerialClass::System {
-                            // If the last one was system, then this one is user.
-                            VEXSerialClass::User
-                        } else {
-                            // Otherwise, it is system.
-                            VEXSerialClass::System
-                        }
+                        // Otherwise, it is system.
+                        VEXSerialClass::System
                     }
+                    
                 },
             });
         }
