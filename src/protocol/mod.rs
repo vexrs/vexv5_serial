@@ -20,8 +20,8 @@ pub const VEX_CRC32: Algorithm<u32> = Algorithm {
 };
 
 /// The default timeout should be 0.1 seconds.
-pub const DEFAULT_TIMEOUT_SECONDS: u64 = 0;
-pub const DEFAULT_TIMEOUT_NS: u32 = 100_000_000;
+pub const DEFAULT_TIMEOUT_SECONDS: u64 = 3;
+pub const DEFAULT_TIMEOUT_NS: u32 = 0;
 
 
 /// There are various commands that can be sent to the V5 device.

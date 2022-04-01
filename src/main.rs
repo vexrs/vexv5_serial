@@ -32,7 +32,14 @@ fn main() -> Result<()> {
     println!("{:?}", info);
 
     // Try to start a program
-    d.execute_program_file("slot_1.bin".to_string())?;
+    d.execute_program_file("slot_2.bin".to_string())?;
+
+    // Loop through, recieving serial data
+    loop {
+        let mut buf = [0u8; 1];
+        let n = d.read_exact(&mut buf)?;
+        print!("{}", buf.as_ascii_str()?);
+    }
 
     Ok(())
 }
