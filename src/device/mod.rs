@@ -1,35 +1,51 @@
-/*
 use crate::ports::{VEXSerialInfo, VEXSerialClass};
+use crate::protocol::V5Protocol;
 use anyhow::{Result, anyhow};
-use serialport::{SerialPort, Parity};
-use std::{io::{Read, Write}};
+
+use std::io::{Read, Write};
+
+pub const SERIAL_TIMEOUT_SECONDS: u64 = 3;
+pub const SERIAL_TIMEOUT_NS: u32 = 0;
 
 
+/// This represents a VEX device connected through a serial port.
+pub struct VEXDevice<T>
+    where T: Read + Write + Clone {
+    /// This is the (required) system port that was connected
+    /// This will be either a controller or a brain and can be used as a fallback
+    /// for generic serial communication.
+    pub port: VEXSerialInfo,
 
+    /// This is the V5Protocol implementation that wraps the system port.
+    protocol: V5Protocol<T>,
 
-pub struct VEXDevice {
-    system: VEXSerialInfo,
-    system_opened: Box<dyn SerialPort>,
-    user: Option<VEXSerialInfo>,
-    user_opened: Option<Box<dyn SerialPort>>,
+    /// This is the (optional) user port that was connected
+    /// that will be used for generic serial communications.
+    pub user_port: Option<VEXSerialInfo>,
+    user_port_writer: Option<T>,
 }
 
-/// Implements a low-level interface to a VEX device.
-/// Using the read trait will read from the serial ports in this priority order:
-/// 1. User port
-/// 2. System port
-impl VEXDevice {
-
+impl<T: Read + Write + Clone> VEXDevice<T> {
     /// Creates a new VEXDevice from the given serial ports
+    pub fn new(system: (VEXSerialInfo, T), user: Option<(VEXSerialInfo, T)>) -> Result<VEXDevice<T>> {
+        Ok(VEXDevice {
+            port: system.0,
+            protocol: V5Protocol::new(system.1, None),
+            user_port: user.clone().map(|x| x.0),
+            user_port_writer: user.map(|x| x.1),
+        })
+    }
+
+    /// Finds which V5 serial ports to use.
     /// NOTE: This supports either a controller, brain, or both plugged in
     /// Two controllers will work, but whichever controller was plugged in first
     /// will be used. Unplugging and replugging a controller will not cause it to
     /// be considered "second" however. If you wish to switch controllers, unplug both,
     /// plug in the one you want to use and then plug in the other one.
-    /// This will prefer a brain over a controller.
-    pub fn new(known_ports: Vec<VEXSerialInfo>) -> Result<VEXDevice> {
+    /// This function will prefer a brain over a controller.
+    pub fn find_ports(known_ports: Vec<VEXSerialInfo>) -> Result<(VEXSerialInfo, Option<VEXSerialInfo>)> {
         // If there are no ports, then error.
-        if known_ports.len() == 0 {
+        if known_ports.is_empty() {
             return Err(anyhow!("No ports found"));
         }
 
@@ -56,32 +72,39 @@ impl VEXDevice {
             port.class == VEXSerialClass::User
         }).cloned();
 
-        // Connect to the system port
-        let system_port_open = {
-            serialport::new(system_port.port_info.port_name.clone(), 115200)
-                .parity(serialport::Parity::None)
-                .timeout(std::time::Duration::new(5, 0))
-                .stop_bits(serialport::StopBits::One).open()?
-        };
+        Ok((system_port.clone(), user_port))
+    }
 
-        // Connect to the user port
-        let user_port_open = {
-            if let Some(p) = user_port {
-                Some(serialport::new(p.port_info.port_name.clone(), 115200)
-                .parity(serialport::Parity::None)
-                .timeout(std::time::Duration::new(5, 0))
-                .stop_bits(serialport::StopBits::One).open()?)
-            } else {
-                None
-            }
-        };
 
-        Ok(VEXDevice {
-            system: system_port.clone(),
-            system_opened: system_port_open,
-            user: user_port,
-            user_opened: user_port_open,
-        })
+
+
+}
+
+
+
+// Reads and writes to the vex device should be done through the user port if it exists,
+// alternatively using the system port if it doe snot exist.
+impl<T: Read + Write + Clone> Read for VEXDevice<T> {
+    fn read(&mut self, buf: &mut [u8]) -> Result<usize, std::io::Error> {
+        match self.user_port_writer {
+            Some(ref mut writer) => writer.read(buf),
+            None => Err(std::io::Error::new(std::io::ErrorKind::Other, "No user port found")),
+        }
     }
 }
- */
+
+impl<T: Read + Write + Clone> Write for VEXDevice<T> {
+    fn write(&mut self, buf: &[u8]) -> Result<usize, std::io::Error> {
+        match self.user_port_writer {
+            Some(ref mut writer) => writer.write(buf),
+            None => Err(std::io::Error::new(std::io::ErrorKind::Other, "No user port found")),
+        }
+    }
+
+    fn flush(&mut self) -> Result<(), std::io::Error> {
+        match self.user_port_writer {
+            Some(ref mut writer) => writer.flush(),
+            None => Err(std::io::Error::new(std::io::ErrorKind::Other, "No user port found")),
+        }
+    }
+}
