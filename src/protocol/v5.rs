@@ -33,7 +33,7 @@ impl<T> V5Protocol<T>
     /// Create a simple packet header.
     fn create_simple_packet(&self, command: VEXDeviceCommand) -> Vec<u8> {
         // Just pack together the command and the magic number
-        vec![0xc9, 0x32, 0xb8, 0x47, command as u8]
+        vec![0xc9, 0x36, 0xb8, 0x47, command as u8]
     }
 
     /// Creates an extended packet.
@@ -42,7 +42,7 @@ impl<T> V5Protocol<T>
     fn create_extended_packet(&self, command: VEXDeviceCommand, payload: Vec<u8>) -> Result<Vec<u8>> {
 
         // Create the packet with the header and command.
-        let mut packet: Vec<u8> = vec![0xc9, 0x32, 0xb8, 0x47, VEXDeviceCommand::Extended as u8, command as u8];
+        let mut packet: Vec<u8> = vec![0xc9, 0x36, 0xb8, 0x47, VEXDeviceCommand::Extended as u8, command as u8];
 
         // Get the payload length as a u16;
         let payload_length = payload.len() as u16;
