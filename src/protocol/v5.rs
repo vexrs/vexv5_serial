@@ -184,7 +184,6 @@ impl<T> V5Protocol<T>
         
         // Recieve the underlying simple packet
         let data = self.receive_simple()?;
-        
 
         // Verify that this is an extended command
         if data.0 != VEXDeviceCommand::Extended {
@@ -206,7 +205,7 @@ impl<T> V5Protocol<T>
             // the device is not a v5 device, or we need to add a new ACK.
             let ack: VEXACKType = match num::FromPrimitive::from_u8(data.1[0]) {
                 Some(c) => c,
-                None => return Err(anyhow!("Unknown ACK recieved: {}", data.1[0])),
+                None => return Err(anyhow!("Unknown ACK recieved: 0x{:x}", data.1[0])),
             };
 
             // If it is not an ack, then we need to return an error
