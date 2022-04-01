@@ -1,6 +1,7 @@
-use crate::ports::{VEXSerialInfo, VEXSerialClass};
+use crate::ports::{VEXSerialInfo};
 use crate::protocol::{V5Protocol, VEXDeviceCommand, VEXExtPacketChecks};
 use anyhow::{Result, anyhow};
+use ascii::AsAsciiStr;
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -12,7 +13,7 @@ use super::{V5DeviceVersion, VexProduct, V5ControllerFlags, V5ControllerChannel}
 
 /// This represents a VEX device connected through a serial port.
 pub struct VEXDevice<T>
-    where T: Read + Write + Clone {
+    where T: Read + Write {
     /// This is the (required) system port that was connected
     /// This will be either a controller or a brain and can be used as a fallback
     /// for generic serial communication.
@@ -27,55 +28,20 @@ pub struct VEXDevice<T>
     user_port_writer: Option<T>,
 }
 
-impl<T: Read + Write + Clone> VEXDevice<T> {
+impl<T: Read + Write> VEXDevice<T> {
     /// Creates a new VEXDevice from the given serial ports
     pub fn new(system: (VEXSerialInfo, T), user: Option<(VEXSerialInfo, T)>) -> Result<VEXDevice<T>> {
+        let u = user.map(|(u, w)| (Some(u), Some(w))).unwrap_or((None, None));
+
         Ok(VEXDevice {
             port: system.0,
             protocol: Rc::new(RefCell::new(V5Protocol::new(system.1, None))),
-            user_port: user.clone().map(|x| x.0),
-            user_port_writer: user.map(|x| x.1),
+            user_port: u.0,
+            user_port_writer: u.1,
         })
     }
 
-    /// Finds which V5 serial ports to use.
-    /// NOTE: This supports either a controller, brain, or both plugged in
-    /// Two controllers will work, but whichever controller was plugged in first
-    /// will be used. Unplugging and replugging a controller will not cause it to
-    /// be considered "second" however. If you wish to switch controllers, unplug both,
-    /// plug in the one you want to use and then plug in the other one.
-    /// This function will prefer a brain over a controller.
-    pub fn find_ports(known_ports: Vec<VEXSerialInfo>) -> Result<(VEXSerialInfo, Option<VEXSerialInfo>)> {
-        // If there are no ports, then error.
-        if known_ports.is_empty() {
-            return Err(anyhow!("No ports found"));
-        }
-
-        // Find the system port
-        let system_port = known_ports.iter().find(|port| {
-            port.class == VEXSerialClass::System
-        }).unwrap_or_else(||{
-            // If no system port was found, then find a controller port
-            match known_ports.iter().find(|port| {
-                port.class == VEXSerialClass::Controller
-            }) {
-                Some(port) => port,
-                None => &known_ports[0],
-            }
-        });
-
-        // If it is not a system or controller port, then error
-        if system_port.class != VEXSerialClass::System && system_port.class != VEXSerialClass::Controller {
-            return Err(anyhow!("No system or controller port found"));
-        }
-
-        // Find the user port
-        let user_port = known_ports.iter().find(|port| {
-            port.class == VEXSerialClass::User
-        }).cloned();
-
-        Ok((system_port.clone(), user_port))
-    }
+    
 
     /// Retrieves the version of the device
     pub fn get_device_version(&self) -> Result<V5DeviceVersion> {
@@ -97,6 +63,21 @@ impl<T: Read + Write + Clone> VEXDevice<T> {
         Ok(version)
     }
 
+
+    /// If this is a controller, switches to a given channel
+    pub fn switch_channel(&mut self, channel: Option<V5ControllerChannel>) -> Result<()> {
+
+        // If the channel is none, then switch back to pit
+        let channel = channel.unwrap_or(V5ControllerChannel::PIT);
+
+        // Send the command
+        self.protocol.borrow_mut().send_extended(VEXDeviceCommand::SwitchChannel, Vec::<u8>::from([channel as u8]))?;
+
+        // Recieve and discard the response
+        let _response = self.protocol.borrow_mut().receive_extended(VEXExtPacketChecks::ALL)?;
+
+        Ok(())
+    }
 
     /// Reads serial data from the system port
     /// Because the system port primarily sends commands,
@@ -144,14 +125,30 @@ impl<T: Read + Write + Clone> VEXDevice<T> {
         Ok(cmp::min(buf.len(), response.1.len()))
     }
 
+    /// Executes a program file on the v5 brain's flash.
+    pub fn execute_program_file(&self, file_name: String) -> Result<()> {
 
+        // Create the payload
+        let payload = bincode::serialize(&(super::VexVID::SYSTEM as u8, 0u8, file_name.as_ascii_str()?.as_bytes()))?;
+
+        // Borrow protocol as mut
+        let mut protocol = self.protocol.borrow_mut();
+
+        // Send the command
+        protocol.send_extended(VEXDeviceCommand::ExecuteFile, payload)?;
+
+        // Read the response
+        let _response = protocol.receive_extended(VEXExtPacketChecks::ALL)?;
+
+        Ok(())
+    }
 }
 
 
 
 // Reads and writes to the vex device should be done through the user port if it exists,
 // alternatively using the system port if it doe snot exist.
-impl<T: Read + Write + Clone> Read for VEXDevice<T> {
+impl<T: Read + Write> Read for VEXDevice<T> {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, std::io::Error> {
         match self.user_port_writer {
             Some(ref mut writer) => writer.read(buf),
@@ -166,7 +163,7 @@ impl<T: Read + Write + Clone> Read for VEXDevice<T> {
     }
 }
 
-impl<T: Read + Write + Clone> Write for VEXDevice<T> {
+impl<T: Read + Write> Write for VEXDevice<T> {
     fn write(&mut self, buf: &[u8]) -> Result<usize, std::io::Error> {
         match self.user_port_writer {
             Some(ref mut writer) => writer.write(buf),
