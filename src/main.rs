@@ -1,7 +1,7 @@
 
 use std::time::Duration;
 
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use vexv5_serial::*;
 use std::io::Read;
 use ascii::AsAsciiStr;
@@ -34,12 +34,17 @@ fn main() -> Result<()> {
     // Try to start a program
     d.execute_program_file("slot_2.bin".to_string())?;
 
+    d.switch_channel(Some(device::V5ControllerChannel::UPLOAD))?;    
+
     // Loop through, recieving serial data
     loop {
-        let mut buf = [0u8; 1];
-        let n = d.read_exact(&mut buf)?;
-        print!("{}", buf.as_ascii_str()?);
+        
+        let buf = d.read_serial()?;
+
+        print!("{}", buf.as_ascii_str().unwrap_or("_".as_ascii_str()?));
     }
+
+    
 
     Ok(())
 }

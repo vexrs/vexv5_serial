@@ -121,14 +121,12 @@ impl<T> V5Protocol<T>
         self.wraps.read_exact(&mut b)?;
         packet.extend_from_slice(&b);
 
-        
-
         // Get the command byte and the length byte of the packet
         let command = b[0];
-
+        
         // We may need to modify the length of the packet if it is an extended command
         // Extended commands use a u16 instead of a u8 for the length.
-        let length = if VEXDeviceCommand::Extended as u8 == command {
+        let length = if VEXDeviceCommand::Extended as u8 == command && b[1] & 0x80 == 0x80 {
             // Read the lower bytes
             let mut bl: [u8; 1] = [0];
             self.wraps.read_exact(&mut bl)?;
@@ -197,15 +195,24 @@ impl<T> V5Protocol<T>
                 return Err(anyhow!("CRC16 failed on response."));
             }
         }
+        
+        // Verify that it is a valid vex command
+        let command: VEXDeviceCommand = match num::FromPrimitive::from_u8(data.1[0]) {
+            Some(c) => c,
+            None => return Err(anyhow!("Unknown command recieved: {}", data.2[2])),
+        };
+
+        // Remove the command from the message
+        let message = data.1[1..].to_vec();
 
         // If we should check the ACK, then do so
         if should_check.contains(VEXExtPacketChecks::ACK) {
             // Try to convert the ACK byte into an ACK enum member
             // If it fails, we do not recognize the ACK and either the packet is malformed,
             // the device is not a v5 device, or we need to add a new ACK.
-            let ack: VEXACKType = match num::FromPrimitive::from_u8(data.1[0]) {
+            let ack: VEXACKType = match num::FromPrimitive::from_u8(message[0]) {
                 Some(c) => c,
-                None => return Err(anyhow!("Unknown ACK recieved: 0x{:x}", data.1[0])),
+                None => return Err(anyhow!("Unknown ACK recieved: 0x{:x}", message[0])),
             };
 
             // If it is not an ack, then we need to return an error
@@ -214,9 +221,9 @@ impl<T> V5Protocol<T>
             }
         }
 
-        // Get the payload without the ACK byte
-        let payload = Vec::from(&data.1[1..]);
-        Ok((VEXDeviceCommand::Extended, payload, data.2))
+        // Get the payload without the ACK byte or the CRC16
+        let payload = Vec::from(&message[1..message.len()-2]);
+        Ok((command, payload, data.2))
     }
 
     /// This function sends an extended packet to the vex device.

@@ -4,6 +4,7 @@ use anyhow::{Result, anyhow};
 use ascii::AsAsciiStr;
 
 use std::cell::RefCell;
+use std::ops::Index;
 use std::rc::Rc;
 use std::io::{Read, Write};
 use std::cmp;
@@ -26,6 +27,8 @@ pub struct VEXDevice<T>
     /// that will be used for generic serial communications.
     pub user_port: Option<VEXSerialInfo>,
     user_port_writer: Option<T>,
+    /// The interrior serial buffer.
+    serial_buffer: Vec<u8>,
 }
 
 impl<T: Read + Write> VEXDevice<T> {
@@ -38,6 +41,7 @@ impl<T: Read + Write> VEXDevice<T> {
             protocol: Rc::new(RefCell::new(V5Protocol::new(system.1, None))),
             user_port: u.0,
             user_port_writer: u.1,
+            serial_buffer: vec![],
         })
     }
 
@@ -82,47 +86,28 @@ impl<T: Read + Write> VEXDevice<T> {
     /// Reads serial data from the system port
     /// Because the system port primarily sends commands,
     /// serial data should be sent as a command.
-    /// This function should only work if the system port is a controller that is connected wirelessly.
-    fn read_serial_remote(&self, buf: &mut [u8]) -> Result<usize> {
+    pub fn read_serial(&mut self) -> Result<Vec<u8>> {
         // The way PROS does this is by caching data until a \00 is received.
-        // This is because PROS uses COBS to send data. However, because this is a generic library
-        // that is not locked to PROS, we will just read data as is.
+        // This is because PROS uses COBS to send data. We will do the same.
         // The PROS source code also notes that read and write are the same command and
         // that the way that the difference is signaled is by providing the read length as 0xFF
         // and adding aditional data for write, or just specifying the read length for reading.
         // PROS also caps the payload size at 64 bytes, which we will do as well.
 
-        // Check if we are using a controller that is connected either wirelessly or wired.
-        // This is a limit that we put on that will be removed after further testing.
-        let can_continue = match self.get_device_version()?.product_type {
-            VexProduct::V5Controller(flags) => flags.contains(V5ControllerFlags::CONNECTED_WIRELESS) ||
-                flags.contains(V5ControllerFlags::CONNECTED_CABLE),
-            _ => false,
-        };
-        
-        if !can_continue {
-            return Err(anyhow!("Can only read serial data from a controller that is connected to a brain"));
-        }
-
         // Borrow the protocol wrapper as mutable
         let mut protocol = self.protocol.borrow_mut();
 
-
         // Pack together data to send -- We are reading on an upload channel
         // and will be reading a maximum of 64 bytes.
-        let payload = bincode::serialize(&(V5ControllerChannel::UPLOAD as u8, 0x40))?;
-
+        let payload: (u8, u8) = (V5ControllerChannel::UPLOAD as u8, 0x40u8);
+        let payload = bincode::serialize(&payload)?;
         // Send the command, requesting the data
         protocol.send_extended(VEXDeviceCommand::SerialReadWrite, payload)?;
-
-        // Read the response
-        let response = protocol.receive_extended(VEXExtPacketChecks::ACK | VEXExtPacketChecks::CRC)?;
+        // Read the response ignoring CRC and length. We assume that any protocols implemented will handle their own CRC.
+        let response = protocol.receive_extended(VEXExtPacketChecks::ACK)?;
         
-        // Write the response into the buffer
-        buf.copy_from_slice(&response.1[0..cmp::min(buf.len(), response.1.len())]);
-
-        // Return the number of bytes read
-        Ok(cmp::min(buf.len(), response.1.len()))
+        // Return the data
+        Ok(response.1)
     }
 
     /// Executes a program file on the v5 brain's flash.
@@ -159,38 +144,4 @@ impl<T: Read + Write> VEXDevice<T> {
 
 
 
-// Reads and writes to the vex device should be done through the user port if it exists,
-// alternatively using the system port if it doe snot exist.
-impl<T: Read + Write> Read for VEXDevice<T> {
-    fn read(&mut self, buf: &mut [u8]) -> Result<usize, std::io::Error> {
-        match self.user_port_writer {
-            Some(ref mut writer) => writer.read(buf),
-            None => {
-                // Then read from system port
-                match self.read_serial_remote(buf) {
-                    Ok(n) => Ok(n),
-                    Err(e) => Err(std::io::Error::new(std::io::ErrorKind::Other, e)),
-                }
-            },
-        }
-    }
-}
 
-impl<T: Read + Write> Write for VEXDevice<T> {
-    fn write(&mut self, buf: &[u8]) -> Result<usize, std::io::Error> {
-        match self.user_port_writer {
-            Some(ref mut writer) => writer.write(buf),
-            None => Err(std::io::Error::new(std::io::ErrorKind::Other, "No user port found")),
-        }
-    }
-
-    fn flush(&mut self) -> Result<(), std::io::Error> {
-        match self.user_port_writer {
-            Some(ref mut writer) => writer.flush(),
-            None => {
-                // Then there is nothing to flush
-                Ok(())
-            },
-        }
-    }
-}
