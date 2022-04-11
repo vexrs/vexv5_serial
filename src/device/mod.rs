@@ -6,7 +6,7 @@ use crate::ports::{VEXSerialInfo, VEXSerialClass};
 use bitflags::bitflags;
 use anyhow::{Result, anyhow};
 
-pub const SERIAL_TIMEOUT_SECONDS: u64 = 5;
+pub const SERIAL_TIMEOUT_SECONDS: u64 = 50;
 pub const SERIAL_TIMEOUT_NS: u32 = 0;
 
 
@@ -48,7 +48,7 @@ impl TryFrom<(u8, u8)> for VexProduct {
         match value.0 {
             0x10 => Ok(VexProduct::V5Brain(V5BrainFlags::from_bits(value.1).unwrap_or(V5BrainFlags::NONE))),
             0x11 => Ok(VexProduct::V5Controller(V5ControllerFlags::from_bits(value.1).unwrap_or(V5ControllerFlags::NONE))),
-            _ => Err(anyhow!("Invalid product type")),
+            _ => Err(anyhow!("Invalid vex product type.")),
         }
     }
 }
@@ -67,10 +67,10 @@ pub struct V5DeviceVersion {
 pub enum V5ControllerChannel {
     /// Used when wirelessly controlling the 
     /// V5 Brain
-    PIT,
+    PIT = 0x00,
     /// Used when wirelessly uploading data to the V5
     /// Brain
-    UPLOAD,
+    UPLOAD = 0x01,
 }
 
 /// Different possible vex VIDs

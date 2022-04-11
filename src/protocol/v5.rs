@@ -132,7 +132,7 @@ impl<T> V5Protocol<T>
             self.wraps.read_exact(&mut bl)?;
             packet.push(bl[0]);
 
-            ((b[1] as u16) << 8) | (bl[0] as u16)
+            (((b[1] & 0x7f) as u16) << 8) | (bl[0] as u16)
         } else {
             b[1] as u16
         };
@@ -140,6 +140,7 @@ impl<T> V5Protocol<T>
         // Read the rest of the payload
         let mut payload: Vec<u8> = vec![0; length as usize];
         self.wraps.read(&mut payload)?;
+        println!("{:?}", payload);
         packet.extend(&payload);
 
         // Try to convert the u8 representation of the command into

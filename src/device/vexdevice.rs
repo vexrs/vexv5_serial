@@ -7,7 +7,7 @@ use std::cell::RefCell;
 use std::ops::Index;
 use std::rc::Rc;
 use std::io::{Read, Write};
-use std::cmp;
+use std::{cmp, vec};
 
 use super::{V5DeviceVersion, VexProduct, V5ControllerFlags, V5ControllerChannel, VexVID};
 
@@ -26,7 +26,7 @@ pub struct VEXDevice<T>
     /// This is the (optional) user port that was connected
     /// that will be used for generic serial communications.
     pub user_port: Option<VEXSerialInfo>,
-    user_port_writer: Option<T>,
+    pub user_port_writer: Option<T>,
     /// The interrior serial buffer.
     serial_buffer: Vec<u8>,
 }
@@ -83,12 +83,32 @@ impl<T: Read + Write> VEXDevice<T> {
         Ok(())
     }
 
+    /// Reads in serial data from the system port.
+    pub fn read_serial(&mut self, n_bytes: usize) -> Result<Vec<u8>> {
+        // If the buffer is too small, read in more
+        while self.serial_buffer.len() < n_bytes {
+            if let Some(w) = &mut self.user_port_writer {
+                let mut buf = [0x0u8; 0x40];
+                w.read(&mut buf)?;
+                self.serial_buffer.extend(buf);
+            } else {
+                let buf = self.read_serial_raw()?;
+                self.serial_buffer.extend(buf);
+            }
+        }
+
+        // Get the data
+        let data: Vec<u8> = self.serial_buffer.drain(0..n_bytes).collect();
+
+        Ok(data)
+    }
+
     /// Reads serial data from the system port
     /// Because the system port primarily sends commands,
     /// serial data should be sent as a command.
-    pub fn read_serial(&mut self) -> Result<Vec<u8>> {
+    fn read_serial_raw(&mut self) -> Result<Vec<u8>> {
         // The way PROS does this is by caching data until a \00 is received.
-        // This is because PROS uses COBS to send data. We will do the same.
+        // This is because PROS uses COBS to send data. We will be doing the same in another function.
         // The PROS source code also notes that read and write are the same command and
         // that the way that the difference is signaled is by providing the read length as 0xFF
         // and adding aditional data for write, or just specifying the read length for reading.
@@ -101,10 +121,12 @@ impl<T: Read + Write> VEXDevice<T> {
         // and will be reading a maximum of 64 bytes.
         let payload: (u8, u8) = (V5ControllerChannel::UPLOAD as u8, 0x40u8);
         let payload = bincode::serialize(&payload)?;
+        
         // Send the command, requesting the data
         protocol.send_extended(VEXDeviceCommand::SerialReadWrite, payload)?;
-        // Read the response ignoring CRC and length. We assume that any protocols implemented will handle their own CRC.
-        let response = protocol.receive_extended(VEXExtPacketChecks::ACK)?;
+
+        // Read the response ignoring CRC and length.
+        let response = protocol.receive_extended(VEXExtPacketChecks::ACK | VEXExtPacketChecks::CRC)?;
         
         // Return the data
         Ok(response.1)

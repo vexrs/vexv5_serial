@@ -30,16 +30,13 @@ fn main() -> Result<()> {
     
     let info = d.get_device_version();
     println!("{:?}", info);
-
     // Try to start a program
     d.execute_program_file("slot_2.bin".to_string())?;
-
-    d.switch_channel(Some(device::V5ControllerChannel::UPLOAD))?;    
 
     // Loop through, recieving serial data
     loop {
         
-        let buf = d.read_serial()?;
+        let mut buf: Vec<u8> = d.read_serial(0x10)?;
 
         print!("{}", buf.as_ascii_str().unwrap_or("_".as_ascii_str()?));
     }
