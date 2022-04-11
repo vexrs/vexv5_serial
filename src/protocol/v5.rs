@@ -139,8 +139,9 @@ impl<T> V5Protocol<T>
 
         // Read the rest of the payload
         let mut payload: Vec<u8> = vec![0; length as usize];
-        self.wraps.read(&mut payload)?;
-        println!("{:?}", payload);
+        // DO NOT CHANGE THIS TO READ. read_exact is required to suppress
+        // CRC errors and missing data.
+        self.wraps.read_exact(&mut payload)?;
         packet.extend(&payload);
 
         // Try to convert the u8 representation of the command into
