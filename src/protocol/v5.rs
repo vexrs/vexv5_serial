@@ -4,6 +4,7 @@ use super::{DEFAULT_TIMEOUT_SECONDS, DEFAULT_TIMEOUT_NS, VEXDeviceCommand, VEXEx
 
 /// Wraps an object with Read + Write traits implemented
 /// to provide an implementation of the VEX V5 Protocol.
+#[derive(Debug, Clone, Copy)]
 pub struct V5Protocol<T>
     where T: Read + Write {
     /// The read/write object to wrap
