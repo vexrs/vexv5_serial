@@ -222,19 +222,33 @@ impl<T: Read + Write> VEXDevice<T> {
         Ok(version)
     }
 
-    /// If this is a controller, switches to a given channel
-    pub fn switch_channel(&mut self, channel: Option<V5ControllerChannel>) -> Result<()> {
+    /// Switch the controller channel
+    fn switch_channel(&mut self, channel: Option<V5ControllerChannel>) -> Result<()> {
+        // If this is not a controller
+        let info = self.get_device_version()?;
+        if let VexProduct::V5Controller(f) = info.product_type {
+            // If the channel is none, then switch back to pit
+            let channel = channel.unwrap_or(V5ControllerChannel::PIT);
 
-        // If the channel is none, then switch back to pit
-        let channel = channel.unwrap_or(V5ControllerChannel::PIT);
+            // Send the command
+            self.protocol.borrow_mut().send_extended(VEXDeviceCommand::SwitchChannel, Vec::<u8>::from([channel as u8]))?;
 
-        // Send the command
-        self.protocol.borrow_mut().send_extended(VEXDeviceCommand::SwitchChannel, Vec::<u8>::from([channel as u8]))?;
+            // Recieve and discard the response
+            let _response = self.protocol.borrow_mut().receive_extended(VEXExtPacketChecks::ALL)?;
 
-        // Recieve and discard the response
-        let _response = self.protocol.borrow_mut().receive_extended(VEXExtPacketChecks::ALL)?;
+            Ok(())
+        } else {
+            Ok(())
+        }
+    }
 
-        Ok(())
+    /// Acts as a context manager to switch to a different controller channel.
+    pub fn with_channel<F>(&mut self, channel: V5ControllerChannel, f: F) -> Result<()>
+        where F: Fn() -> Result<()> {
+        self.switch_channel(Some(channel))?;
+        let res = f();
+        self.switch_channel(None)?;
+        res
     }
 
     /// Reads in serial data from the system port.
