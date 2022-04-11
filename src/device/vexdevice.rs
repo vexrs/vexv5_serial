@@ -1,15 +1,14 @@
 use crate::ports::{VEXSerialInfo};
 use crate::protocol::{V5Protocol, VEXDeviceCommand, VEXExtPacketChecks};
-use anyhow::{Result, anyhow};
+use anyhow::{Result};
 use ascii::AsAsciiStr;
 
 use std::cell::RefCell;
-use std::ops::Index;
 use std::rc::Rc;
 use std::io::{Read, Write};
-use std::{cmp, vec};
+use std::{vec};
 
-use super::{V5DeviceVersion, VexProduct, V5ControllerFlags, V5ControllerChannel, VexVID};
+use super::{V5DeviceVersion, VexProduct, V5ControllerChannel, VexVID};
 
 
 /// This represents a VEX device connected through a serial port.
@@ -84,11 +83,15 @@ impl<T: Read + Write> VEXDevice<T> {
     }
 
     /// Reads in serial data from the system port.
+    #[allow(clippy::unused_io_amount)]
     pub fn read_serial(&mut self, n_bytes: usize) -> Result<Vec<u8>> {
         // If the buffer is too small, read in more
         while self.serial_buffer.len() < n_bytes {
             if let Some(w) = &mut self.user_port_writer {
-                let mut buf = [0x0u8; 0x40];
+                // Max out at 255 bytes.
+                let mut buf = [0x0u8; 0xff];
+
+                // No read exact here, because we do not know how many bytes will be sent.
                 w.read(&mut buf)?;
                 self.serial_buffer.extend(buf);
             } else {

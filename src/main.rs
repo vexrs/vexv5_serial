@@ -1,9 +1,8 @@
 
 use std::time::Duration;
 
-use anyhow::{Result, anyhow};
+use anyhow::{Result};
 use vexv5_serial::*;
-use std::io::Read;
 use ascii::AsAsciiStr;
 
 fn main() -> Result<()> {
@@ -36,12 +35,10 @@ fn main() -> Result<()> {
     // Loop through, recieving serial data
     loop {
         
-        let mut buf: Vec<u8> = d.read_serial(0x10)?;
+        let buf: Vec<u8> = d.read_serial(0x10)?;
 
         print!("{}", buf.as_ascii_str().unwrap_or("_".as_ascii_str()?));
     }
-
-    
 
     Ok(())
 }
