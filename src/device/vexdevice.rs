@@ -86,7 +86,7 @@ impl<T: Read + Write> VEXDevice<T> {
     #[allow(clippy::unused_io_amount)]
     pub fn read_serial(&mut self, n_bytes: usize) -> Result<Vec<u8>> {
         // If the buffer is too small, read in more
-        while self.serial_buffer.len() < n_bytes {
+        loop {
             if let Some(w) = &mut self.user_port_writer {
                 // Max out at 255 bytes.
                 let mut buf = [0x0u8; 0xff];
@@ -98,9 +98,13 @@ impl<T: Read + Write> VEXDevice<T> {
                 let buf = self.read_serial_raw()?;
                 self.serial_buffer.extend(buf);
             }
+
+            if !(self.serial_buffer.len() < n_bytes) {
+                break;
+            }
         }
 
-        // Get the data
+        // Get the data.
         let data: Vec<u8> = self.serial_buffer.drain(0..n_bytes).collect();
 
         Ok(data)
@@ -168,5 +172,31 @@ impl<T: Read + Write> VEXDevice<T> {
 }
 
 
+impl<T: Read+ Write> Read for VEXDevice<T> {
+    fn read(&mut self, buf: &mut [u8]) -> Result<usize, std::io::Error> {
+        // Read data if we do nto have enough in the buffer
+        if self.serial_buffer.len() < buf.len() {
+            let data = match self.read_serial(0) {
+                Ok(d) => d,
+                Err(e) => {
+                    return Err(std::io::Error::new(std::io::ErrorKind::Other, e.to_string()));
+                }
+            };
+        }
+        
 
+        // Find what length to read
+        let len = std::cmp::min(self.serial_buffer.len(), buf.len());
 
+        // Drain it out of the buffer
+        let mut data: Vec<u8> = self.serial_buffer.drain(0..len).collect();
+        
+        // Resize data to be the same size as the buffer
+        data.resize(buf.len(), 0x00);
+
+        // Copy the data into the buffer
+        buf.copy_from_slice(&data);
+
+        Ok(len)
+    }
+}
