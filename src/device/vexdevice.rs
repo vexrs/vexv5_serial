@@ -99,7 +99,7 @@ impl<T: Read + Write> VEXDevice<T> {
                 self.serial_buffer.extend(buf);
             }
 
-            if !(self.serial_buffer.len() < n_bytes) {
+            if self.serial_buffer.len() >= n_bytes {
                 break;
             }
         }
@@ -176,7 +176,7 @@ impl<T: Read+ Write> Read for VEXDevice<T> {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, std::io::Error> {
         // Read data if we do nto have enough in the buffer
         if self.serial_buffer.len() < buf.len() {
-            let data = match self.read_serial(0) {
+            let _data = match self.read_serial(0) {
                 Ok(d) => d,
                 Err(e) => {
                     return Err(std::io::Error::new(std::io::ErrorKind::Other, e.to_string()));

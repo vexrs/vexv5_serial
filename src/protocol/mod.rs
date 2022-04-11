@@ -8,7 +8,7 @@ pub const VEX_CRC16: Algorithm<u16> = crc::CRC_16_XMODEM;
 
 /// Vex uses a CRC32 that I found on page
 /// 6 of this document: 
-/// https://www.matec-conferences.org/articles/matecconf/pdf/2016/11/matecconf_tomsk2016_04001.pdf
+/// <https://www.matec-conferences.org/articles/matecconf/pdf/2016/11/matecconf_tomsk2016_04001.pdf>
 pub const VEX_CRC32: Algorithm<u32> = Algorithm {
     poly: 0x04C11DB7,
     init: 0x00000000,

@@ -34,11 +34,9 @@ fn main() -> Result<()> {
 
     // Loop through, recieving serial data
     loop {
-        let mut buf = [0x0u8; 0x64];
-        d.read(&mut buf)?;
+        let mut buf = [0x0u8; 1];
+        d.read_exact(&mut buf)?;
 
         print!("{}", buf.as_ascii_str().unwrap_or("_".as_ascii_str()?));
     }
-
-    Ok(())
 }
