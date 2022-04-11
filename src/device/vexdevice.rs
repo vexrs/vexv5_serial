@@ -25,7 +25,7 @@ pub struct VEXDevice<T>
     /// This is the (optional) user port that was connected
     /// that will be used for generic serial communications.
     pub user_port: Option<VEXSerialInfo>,
-    pub user_port_writer: Option<T>,
+    user_port_writer: Option<T>,
     /// The interrior serial buffer.
     serial_buffer: Vec<u8>,
 }
