@@ -6,7 +6,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::io::{Read, Write};
 use std::{vec};
-use super::{V5DeviceVersion, VexProduct, V5ControllerChannel, VexVID, VexInitialFileMetadata, VexFiletransferMetadata, VexFileTarget, VexFileMode, VexFileMetadataByIndex, VexFileMetadataByName, VexFileMetadataSet};
+use super::{V5DeviceVersion, VexProduct, V5ControllerChannel, VexVID, VexInitialFileMetadata, VexFiletransferMetadata, VexFileTarget, VexFileMode, VexFileMetadataByIndex, VexFileMetadataByName, VexFileMetadataSet, VexFiletransferFinished};
 
 
 
@@ -259,6 +259,24 @@ impl<T: Read + Write> VexDevice<T> {
             crc: response.2,
         };
 
+        // If this is opening for write, then 
+        // set the linked filename
+        if let VexFileMode::Upload(_, _) = file_metadata.function {
+            // Create the payload
+            let payload: (u8, u8, [u8; 24]) = (
+                file_metadata.vid as u8,
+                file_metadata.options | ft.2,
+                file_name_bytes
+            );
+            let payload = bincode::serialize(&payload)?;
+            
+            // Send the command
+            let mut protocol = self.protocol.borrow_mut();
+            protocol.send_extended(VexDeviceCommand::SetLinkedFilename, payload)?;
+            protocol.receive_extended(VexExtPacketChecks::ALL)?;
+
+        }
+
         // Create the file handle
         let handle = super::V5FileHandle {
             device: Rc::clone(&self.protocol),
@@ -269,6 +287,23 @@ impl<T: Read + Write> VexDevice<T> {
 
         // Return the handle
         Ok(handle)
+    }
+
+    /// Closes the current file transfer
+    fn file_transfer_close(&self, on_exit: Option<VexFiletransferFinished>) -> Result<Vec<u8>> {
+
+        let on_exit = on_exit.unwrap_or(VexFiletransferFinished::DoNothing);
+
+        let mut protocol = self.protocol.borrow_mut();
+
+        // Send the exit command
+        protocol.send_extended(VexDeviceCommand::ExitFile, bincode::serialize(&(on_exit as u8))?)?;
+
+        // Get the response
+        let response = protocol.receive_extended(VexExtPacketChecks::ALL)?;
+        
+        // Return the response data
+        Ok(response.1)
     }
 
     /// Gets the metadata of a file from it's index number
@@ -352,6 +387,66 @@ impl<T: Read + Write> VexDevice<T> {
 
         // Recieve and discard the response
         let _response = protocol.receive_extended(VexExtPacketChecks::ALL);
+
+        Ok(())
+    }
+
+    /// Gets the number of directories on the v5 brain
+    pub fn get_directory_count(&self, vid: Option<VexVID>, options: Option<u8>) -> Result<i16> {
+
+        let vid = vid.unwrap_or_default();
+        let options = options.unwrap_or_default();
+
+        // Pack together the payload
+        let payload = bincode::serialize(&(vid as u8, options))?;
+
+        // Borrow the protocol wrapper as mutable
+        let mut protocol = self.protocol.borrow_mut();
+
+        // Request the size
+        protocol.send_extended(VexDeviceCommand::GetDirectoryCount, payload)?;
+        let response = protocol.receive_extended(VexExtPacketChecks::ALL)?;
+
+        // Unpack the size and return
+        Ok(bincode::deserialize(&response.1)?)
+    }
+
+    /// Erases a file from V5 flash
+    /// If erase all is specified then it will erase all files
+    /// matching the base name. This defaults to true
+    pub fn delete_file(&self, name: String, vid: Option<VexVID>, erase_all: Option<bool>) -> Result<()> {
+
+        let vid = vid.unwrap_or_default();
+        let erase_all = erase_all.unwrap_or(true);
+
+
+        // Apply the erase all option if needed
+        let options: u8 = if erase_all {
+            0x00 | 0x80
+        } else {
+            0x00
+        };
+
+        // Convert the file name into a 24 byte long ASCII string
+        let file_name = name.as_ascii_str()?;
+        let mut file_name_bytes: [u8; 24] = [0; 24];
+        for (i, byte) in file_name.as_slice().iter().enumerate() {
+            if i + 1 > 24 {
+                break;
+            }
+            file_name_bytes[i] = *byte as u8;
+        }
+
+        // Pack and send the payload
+        let payload = bincode::serialize(&(vid as u8, options, file_name_bytes))?;
+        let mut protocol = self.protocol.borrow_mut();
+        protocol.send_extended(VexDeviceCommand::DeleteFile, payload)?;
+
+        // Discard the response
+        protocol.receive_extended(VexExtPacketChecks::ALL)?;
+
+        // According to PROS, a file transfer is started here, so we should end it
+        self.file_transfer_close(None)?;
 
         Ok(())
     }
