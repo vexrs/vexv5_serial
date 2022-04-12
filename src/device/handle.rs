@@ -1,4 +1,4 @@
-use crate::protocol::{VEXDeviceCommand, VEXExtPacketChecks};
+use crate::protocol::{VexDeviceCommand, VexExtPacketChecks};
 use anyhow::Result;
 use ascii::AsciiString;
 use std::cell::RefCell;
@@ -29,10 +29,10 @@ impl<T: Write + Read> V5FileHandle<T> {
 
 
         // Send the exit command
-        self.device.borrow_mut().send_extended(VEXDeviceCommand::ExitFile, bincode::serialize(&(on_exit as u8))?)?;
+        self.device.borrow_mut().send_extended(VexDeviceCommand::ExitFile, bincode::serialize(&(on_exit as u8))?)?;
 
         // Get the response
-        let response = self.device.borrow_mut().receive_extended(VEXExtPacketChecks::ALL)?;
+        let response = self.device.borrow_mut().receive_extended(VexExtPacketChecks::ALL)?;
         
         // Return the response data
         Ok(response.1)
@@ -49,10 +49,10 @@ impl<T: Write + Read> V5FileHandle<T> {
         let payload = bincode::serialize(&(offset, n_bytes_pad))?;
 
         // Send the read command
-        self.device.borrow_mut().send_extended(VEXDeviceCommand::ReadFile, payload)?;
+        self.device.borrow_mut().send_extended(VexDeviceCommand::ReadFile, payload)?;
 
         // Recieve the response
-        let response = self.device.borrow_mut().receive_extended(VEXExtPacketChecks::CRC)?;
+        let response = self.device.borrow_mut().receive_extended(VexExtPacketChecks::CRC)?;
 
         // Truncate to requested data (Ignore the integer sent in the first four bytes)
         let offset = 4;
@@ -100,10 +100,10 @@ impl<T: Write + Read> V5FileHandle<T> {
         }
         
         // Send the write command
-        let _sent = self.device.borrow_mut().send_extended(VEXDeviceCommand::WriteFile, payload)?;
+        let _sent = self.device.borrow_mut().send_extended(VexDeviceCommand::WriteFile, payload)?;
         
         // Recieve and discard the response
-        let _response = self.device.borrow_mut().receive_extended(VEXExtPacketChecks::ALL)?;
+        let _response = self.device.borrow_mut().receive_extended(VexExtPacketChecks::ALL)?;
         
         Ok(())
     }

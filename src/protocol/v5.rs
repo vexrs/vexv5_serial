@@ -1,9 +1,9 @@
 use std::{io::{Read, Write}, time::{Duration, SystemTime}};
 use anyhow::{Result, anyhow};
-use super::{DEFAULT_TIMEOUT_SECONDS, DEFAULT_TIMEOUT_NS, VEXDeviceCommand, VEXExtPacketChecks, VEXACKType};
+use super::{DEFAULT_TIMEOUT_SECONDS, DEFAULT_TIMEOUT_NS, VexDeviceCommand, VexExtPacketChecks, VexACKType};
 
 /// Wraps an object with Read + Write traits implemented
-/// to provide an implementation of the VEX V5 Protocol.
+/// to provide an implementation of the Vex V5 Protocol.
 #[derive(Debug, Clone, Copy)]
 pub struct V5Protocol<T>
     where T: Read + Write {
@@ -32,7 +32,7 @@ impl<T> V5Protocol<T>
     }
 
     /// Create a simple packet header.
-    fn create_simple_packet(&self, command: VEXDeviceCommand) -> Vec<u8> {
+    fn create_simple_packet(&self, command: VexDeviceCommand) -> Vec<u8> {
         // Just pack together the command and the magic number
         vec![0xc9, 0x36, 0xb8, 0x47, command as u8]
     }
@@ -40,10 +40,10 @@ impl<T> V5Protocol<T>
     /// Creates an extended packet.
     /// This function, unlike the create_simple_packet function
     /// includes various other features such as length, CRC, etc.
-    fn create_extended_packet(&self, command: VEXDeviceCommand, payload: Vec<u8>) -> Result<Vec<u8>> {
+    fn create_extended_packet(&self, command: VexDeviceCommand, payload: Vec<u8>) -> Result<Vec<u8>> {
 
         // Create the packet with the header and command.
-        let mut packet: Vec<u8> = vec![0xc9, 0x36, 0xb8, 0x47, VEXDeviceCommand::Extended as u8, command as u8];
+        let mut packet: Vec<u8> = vec![0xc9, 0x36, 0xb8, 0x47, VexDeviceCommand::Extended as u8, command as u8];
 
         // Get the payload length as a u16;
         let payload_length = payload.len() as u16;
@@ -72,7 +72,7 @@ impl<T> V5Protocol<T>
     
 
     /// Revieves a simple packet from the vex device.
-    pub fn receive_simple(&mut self) -> Result<(VEXDeviceCommand, Vec<u8>, Vec<u8>)> {
+    pub fn receive_simple(&mut self) -> Result<(VexDeviceCommand, Vec<u8>, Vec<u8>)> {
         // We need to wait to recieve the header of a packet.
         // The header should be the bytes [0xAA, 0x55]
 
@@ -127,7 +127,7 @@ impl<T> V5Protocol<T>
         
         // We may need to modify the length of the packet if it is an extended command
         // Extended commands use a u16 instead of a u8 for the length.
-        let length = if VEXDeviceCommand::Extended as u8 == command && b[1] & 0x80 == 0x80 {
+        let length = if VexDeviceCommand::Extended as u8 == command && b[1] & 0x80 == 0x80 {
             // Read the lower bytes
             let mut bl: [u8; 1] = [0];
             self.wraps.read_exact(&mut bl)?;
@@ -146,10 +146,10 @@ impl<T> V5Protocol<T>
         packet.extend(&payload);
 
         // Try to convert the u8 representation of the command into
-        // a VEXDeviceCommand enum member.
+        // a VexDeviceCommand enum member.
         // If it fails, we do not recognize the command and either the packet is malformed,
         // the device is not a v5 device, or we need to add a new command.
-        let command: VEXDeviceCommand = match num::FromPrimitive::from_u8(command) {
+        let command: VexDeviceCommand = match num::FromPrimitive::from_u8(command) {
             Some(c) => c,
             None => return Err(anyhow!("Unknown command recieved: {}", command)),
         };
@@ -162,7 +162,7 @@ impl<T> V5Protocol<T>
     /// Sends a simple packet to the device. This does not encode the length of the data
     /// because the length depends on the command. Like other write commands, this returns
     /// the number of bytes written.
-    pub fn send_simple(&mut self, command: VEXDeviceCommand, data: Vec<u8>) -> Result<usize> {
+    pub fn send_simple(&mut self, command: VexDeviceCommand, data: Vec<u8>) -> Result<usize> {
 
         // Create the header
         let mut packet = self.create_simple_packet(command);
@@ -181,18 +181,18 @@ impl<T> V5Protocol<T>
     /// This receives an extended packet from the vex device.
     /// Depending on the flags passed, this will also check the CRC16 of the packet, the
     /// length of the packet and the ACK recieved.
-    pub fn receive_extended(&mut self, should_check: VEXExtPacketChecks) -> Result<(VEXDeviceCommand, Vec<u8>, Vec<u8>)> {
+    pub fn receive_extended(&mut self, should_check: VexExtPacketChecks) -> Result<(VexDeviceCommand, Vec<u8>, Vec<u8>)> {
         
         // Recieve the underlying simple packet
         let data = self.receive_simple()?;
 
         // Verify that this is an extended command
-        if data.0 != VEXDeviceCommand::Extended {
+        if data.0 != VexDeviceCommand::Extended {
             return Err(anyhow!("Unexpected command recieved. Expected Extended, got {:?}", data.0));
         }
 
         // If we are supposed to check the CRC, then do so
-        if should_check.contains(VEXExtPacketChecks::CRC) {
+        if should_check.contains(VexExtPacketChecks::CRC) {
             let crc = crc::Crc::<u16>::new(&super::VEX_CRC16);
             if crc.checksum(&data.2) != 0 {
                 return Err(anyhow!("CRC16 failed on response."));
@@ -200,7 +200,7 @@ impl<T> V5Protocol<T>
         }
         
         // Verify that it is a valid vex command
-        let command: VEXDeviceCommand = match num::FromPrimitive::from_u8(data.1[0]) {
+        let command: VexDeviceCommand = match num::FromPrimitive::from_u8(data.1[0]) {
             Some(c) => c,
             None => return Err(anyhow!("Unknown command recieved: {}", data.2[2])),
         };
@@ -209,17 +209,17 @@ impl<T> V5Protocol<T>
         let message = data.1[1..].to_vec();
 
         // If we should check the ACK, then do so
-        if should_check.contains(VEXExtPacketChecks::ACK) {
+        if should_check.contains(VexExtPacketChecks::ACK) {
             // Try to convert the ACK byte into an ACK enum member
             // If it fails, we do not recognize the ACK and either the packet is malformed,
             // the device is not a v5 device, or we need to add a new ACK.
-            let ack: VEXACKType = match num::FromPrimitive::from_u8(message[0]) {
+            let ack: VexACKType = match num::FromPrimitive::from_u8(message[0]) {
                 Some(c) => c,
                 None => return Err(anyhow!("Unknown ACK recieved: 0x{:x}", message[0])),
             };
 
             // If it is not an ack, then we need to return an error
-            if ack != VEXACKType::ACK {
+            if ack != VexACKType::ACK {
                 return Err(anyhow!("Device NACKED with code {:?}", ack));
             }
         }
@@ -231,7 +231,7 @@ impl<T> V5Protocol<T>
 
     /// This function sends an extended packet to the vex device.
     /// Like other write commands, this returns the number of bytes written.
-    pub fn send_extended(&mut self, command: VEXDeviceCommand, data: Vec<u8>) -> Result<usize> {
+    pub fn send_extended(&mut self, command: VexDeviceCommand, data: Vec<u8>) -> Result<usize> {
         
         // Create the extended packet
         let packet = self.create_extended_packet(command, data)?;

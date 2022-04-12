@@ -30,7 +30,7 @@ pub const DEFAULT_TIMEOUT_NS: u32 = 0;
 /// or at least file an issue telling me what they are.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromPrimitive, ToPrimitive)]
-pub enum VEXDeviceCommand {
+pub enum VexDeviceCommand {
     SwitchChannel = 0x10,
     OpenFile = 0x11,
     ExitFile = 0x12,
@@ -52,7 +52,7 @@ pub enum VEXDeviceCommand {
 /// This list contains all known NACKs as well as ACK.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromPrimitive, ToPrimitive)]
-pub enum VEXACKType {
+pub enum VexACKType {
     ACK = 0x76,
     NACKCrcError = 0xCE,
     NACKPayloadShort = 0xD0,
@@ -72,7 +72,7 @@ pub enum VEXACKType {
 bitflags! {
     /// These flags determine what checks recieve_extended will perform
     /// on the recieved packet.
-    pub struct VEXExtPacketChecks: u8 {
+    pub struct VexExtPacketChecks: u8 {
         const NONE = 0b00000000;
         const ACK = 0b00000001;
         const CRC = 0b00000010;

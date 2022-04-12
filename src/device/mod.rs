@@ -2,12 +2,12 @@ pub mod vexdevice;
 pub mod handle;
 pub mod file;
 
-pub use vexdevice::VEXDevice;
+pub use vexdevice::VexDevice;
 pub use handle::V5FileHandle;
 pub use file::*;
 
 
-use crate::ports::{VEXSerialInfo, VEXSerialClass};
+use crate::ports::{VexSerialInfo, VexSerialClass};
 
 use bitflags::bitflags;
 use anyhow::{Result, anyhow};
@@ -31,7 +31,7 @@ bitflags!{
 }
 
 /// This enum is a convenient representation
-/// of which type of product the VEX device is.
+/// of which type of product the Vex device is.
 #[derive(Debug, Clone, Copy)]
 pub enum VexProduct {
     V5Brain(V5BrainFlags),
@@ -106,30 +106,30 @@ impl Default for VexVID {
     /// be considered "second" however. If you wish to switch controllers, unplug both,
     /// plug in the one you want to use and then plug in the other one.
 /// This function will prefer a brain over a controller.
-pub fn find_ports(known_ports: Vec<VEXSerialInfo>) -> Result<(VEXSerialInfo, Option<VEXSerialInfo>)> {
+pub fn find_ports(known_ports: Vec<VexSerialInfo>) -> Result<(VexSerialInfo, Option<VexSerialInfo>)> {
     // If there are no ports, then error.
     if known_ports.is_empty() {
         return Err(anyhow!("No ports found"));
     }
     // Find the system port
     let system_port = known_ports.iter().find(|port| {
-        port.class == VEXSerialClass::System
+        port.class == VexSerialClass::System
     }).unwrap_or_else(||{
         // If no system port was found, then find a controller port
         match known_ports.iter().find(|port| {
-            port.class == VEXSerialClass::Controller
+            port.class == VexSerialClass::Controller
         }) {
             Some(port) => port,
             None => &known_ports[0],
         }
     });
     // If it is not a system or controller port, then error
-    if system_port.class != VEXSerialClass::System && system_port.class != VEXSerialClass::Controller {
+    if system_port.class != VexSerialClass::System && system_port.class != VexSerialClass::Controller {
         return Err(anyhow!("No system or controller port found"));
     }
     // Find the user port
     let user_port = known_ports.iter().find(|port| {
-        port.class == VEXSerialClass::User
+        port.class == VexSerialClass::User
     }).cloned();
     Ok((system_port.clone(), user_port))
 }

@@ -7,25 +7,25 @@ const VEX_VID: u16 = 0x2888;
 
 /// Represents the class of a vex serial port
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum VEXSerialClass {
+pub enum VexSerialClass {
     User,
     System,
     Controller,
 }
 
-/// Represents information about a VEX serial port
+/// Represents information about a Vex serial port
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct VEXSerialInfo {
+pub struct VexSerialInfo {
     pub port_info: SerialPortInfo,
-    pub class: VEXSerialClass,
+    pub class: VexSerialClass,
 }
 
 
-pub fn discover_vex_ports() -> Result<Vec<VEXSerialInfo>> {
+pub fn discover_vex_ports() -> Result<Vec<VexSerialInfo>> {
     // Get all serial devices
     let available_ports = serialport::available_ports()?;
 
-    let mut vex_ports: Vec<VEXSerialInfo> = Vec::new();
+    let mut vex_ports: Vec<VexSerialInfo> = Vec::new();
 
     // Iterate over all available ports
     for port in available_ports {
@@ -40,26 +40,26 @@ pub fn discover_vex_ports() -> Result<Vec<VEXSerialInfo>> {
         }
         // If it is a v5 controller, then add it to the list
         if port_info.pid == VEX_V5_CONTROLLER_PID {
-            vex_ports.push(VEXSerialInfo {
+            vex_ports.push(VexSerialInfo {
                 port_info: port.clone(),
-                class: VEXSerialClass::Controller,
+                class: VexSerialClass::Controller,
             });
         }
 
         // If it is a v5 brain, then add it to the list
         if port_info.pid == VEX_V5_BRAIN_PID {
             
-            vex_ports.push(VEXSerialInfo {
+            vex_ports.push(VexSerialInfo {
                 port_info: port.clone(),
                 class: {
                     if vex_ports.is_empty() {
-                        VEXSerialClass::System // According to PROS code comments, system is always first
-                    } else if vex_ports.last().unwrap().class == VEXSerialClass::System{
+                        VexSerialClass::System // According to PROS code comments, system is always first
+                    } else if vex_ports.last().unwrap().class == VexSerialClass::System{
                         // If the last one was system, then this one is user.
-                        VEXSerialClass::User
+                        VexSerialClass::User
                     } else {
                         // Otherwise, it is system.
-                        VEXSerialClass::System
+                        VexSerialClass::System
                     }
                     
                 },

@@ -25,7 +25,7 @@ fn main() -> Result<()> {
         None => None
     };
 
-    let mut d = device::VEXDevice::new(system, user)?;
+    let mut d = device::VexDevice::new(system, user)?;
     
     let info = d.get_device_version();
     println!("{:?}", info);

@@ -1,5 +1,5 @@
-use crate::ports::{VEXSerialInfo};
-use crate::protocol::{V5Protocol, VEXDeviceCommand, VEXExtPacketChecks};
+use crate::ports::{VexSerialInfo};
+use crate::protocol::{V5Protocol, VexDeviceCommand, VexExtPacketChecks};
 use anyhow::{Result};
 use ascii::AsAsciiStr;
 use std::cell::RefCell;
@@ -12,31 +12,31 @@ use super::{V5DeviceVersion, VexProduct, V5ControllerChannel, VexVID, VexInitial
 
 
 
-/// This represents a VEX device connected through a serial port.
-pub struct VEXDevice<T>
+/// This represents a Vex device connected through a serial port.
+pub struct VexDevice<T>
     where T: Read + Write {
     /// This is the (required) system port that was connected
     /// This will be either a controller or a brain and can be used as a fallback
     /// for generic serial communication.
-    pub port: VEXSerialInfo,
+    pub port: VexSerialInfo,
 
     /// This is the V5Protocol implementation that wraps the system port.
     protocol: Rc<RefCell<V5Protocol<T>>>,
 
     /// This is the (optional) user port that was connected
     /// that will be used for generic serial communications.
-    pub user_port: Option<VEXSerialInfo>,
+    pub user_port: Option<VexSerialInfo>,
     user_port_writer: Option<T>,
     /// The interrior serial buffer.
     serial_buffer: Vec<u8>,
 }
 
-impl<T: Read + Write> VEXDevice<T> {
-    /// Creates a new VEXDevice from the given serial ports
-    pub fn new(system: (VEXSerialInfo, T), user: Option<(VEXSerialInfo, T)>) -> Result<VEXDevice<T>> {
+impl<T: Read + Write> VexDevice<T> {
+    /// Creates a new VexDevice from the given serial ports
+    pub fn new(system: (VexSerialInfo, T), user: Option<(VexSerialInfo, T)>) -> Result<VexDevice<T>> {
         let u = user.map(|(u, w)| (Some(u), Some(w))).unwrap_or((None, None));
 
-        Ok(VEXDevice {
+        Ok(VexDevice {
             port: system.0,
             protocol: Rc::new(RefCell::new(V5Protocol::new(system.1, None))),
             user_port: u.0,
@@ -52,7 +52,7 @@ impl<T: Read + Write> VEXDevice<T> {
         let mut protocol = self.protocol.borrow_mut();
 
         // Request the system information
-        protocol.send_simple(VEXDeviceCommand::GetSystemVersion, Vec::new())?;
+        protocol.send_simple(VexDeviceCommand::GetSystemVersion, Vec::new())?;
 
         let version = protocol.receive_simple()?.1;
 
@@ -74,10 +74,10 @@ impl<T: Read + Write> VEXDevice<T> {
             let channel = channel.unwrap_or(V5ControllerChannel::PIT);
 
             // Send the command
-            self.protocol.borrow_mut().send_extended(VEXDeviceCommand::SwitchChannel, Vec::<u8>::from([channel as u8]))?;
+            self.protocol.borrow_mut().send_extended(VexDeviceCommand::SwitchChannel, Vec::<u8>::from([channel as u8]))?;
 
             // Recieve and discard the response
-            let _response = self.protocol.borrow_mut().receive_extended(VEXExtPacketChecks::ALL)?;
+            let _response = self.protocol.borrow_mut().receive_extended(VexExtPacketChecks::ALL)?;
 
             Ok(())
         } else {
@@ -142,10 +142,10 @@ impl<T: Read + Write> VEXDevice<T> {
         let payload = bincode::serialize(&payload)?;
         
         // Send the command, requesting the data
-        protocol.send_extended(VEXDeviceCommand::SerialReadWrite, payload)?;
+        protocol.send_extended(VexDeviceCommand::SerialReadWrite, payload)?;
 
         // Read the response ignoring CRC and length.
-        let response = protocol.receive_extended(VEXExtPacketChecks::ACK | VEXExtPacketChecks::CRC)?;
+        let response = protocol.receive_extended(VexExtPacketChecks::ACK | VexExtPacketChecks::CRC)?;
         
         // Return the data
         Ok(response.1)
@@ -177,10 +177,10 @@ impl<T: Read + Write> VEXDevice<T> {
         let mut protocol = self.protocol.borrow_mut();
 
         // Send the command
-        protocol.send_extended(VEXDeviceCommand::ExecuteFile, payload)?;
+        protocol.send_extended(VexDeviceCommand::ExecuteFile, payload)?;
         
         // Read the response
-        let _response = protocol.receive_extended(VEXExtPacketChecks::ALL)?;
+        let _response = protocol.receive_extended(VexExtPacketChecks::ALL)?;
 
         Ok(())
     }
@@ -246,10 +246,10 @@ impl<T: Read + Write> VEXDevice<T> {
         let mut protocol = self.protocol.borrow_mut();
 
         // Send the request
-        protocol.send_extended(VEXDeviceCommand::OpenFile, payload)?;
+        protocol.send_extended(VexDeviceCommand::OpenFile, payload)?;
 
         // Receive the response
-        let response = protocol.receive_extended(VEXExtPacketChecks::ALL)?;
+        let response = protocol.receive_extended(VexExtPacketChecks::ALL)?;
 
         // Parse the response
         let response: (u16, u32, u32) = bincode::deserialize(&response.1)?;
@@ -283,10 +283,10 @@ impl<T: Read + Write> VEXDevice<T> {
         let mut protocol = self.protocol.borrow_mut();
 
         // Send the command
-        protocol.send_extended(VEXDeviceCommand::GetMetadataByFileIndex, payload)?;
+        protocol.send_extended(VexDeviceCommand::GetMetadataByFileIndex, payload)?;
 
         // Recieve the response
-        let response = protocol.receive_extended(VEXExtPacketChecks::ALL)?;
+        let response = protocol.receive_extended(VexExtPacketChecks::ALL)?;
 
         // Unpack the data
         let response: VexFileMetadataByIndex = bincode::deserialize(&response.1)?;
@@ -317,10 +317,10 @@ impl<T: Read + Write> VEXDevice<T> {
         let mut protocol = self.protocol.borrow_mut();
 
         // Send the command
-        protocol.send_extended(VEXDeviceCommand::GetMetadataByFilename, payload)?;
+        protocol.send_extended(VexDeviceCommand::GetMetadataByFilename, payload)?;
 
         // Recieve the response
-        let response = protocol.receive_extended(VEXExtPacketChecks::ALL)?;
+        let response = protocol.receive_extended(VexExtPacketChecks::ALL)?;
 
         // Unpack the data
         let response: VexFileMetadataByName = bincode::deserialize(&response.1)?;
@@ -348,10 +348,10 @@ impl<T: Read + Write> VEXDevice<T> {
         let mut protocol = self.protocol.borrow_mut();
 
         // Send the command
-        protocol.send_extended(VEXDeviceCommand::SetFileMetadata, payload)?;
+        protocol.send_extended(VexDeviceCommand::SetFileMetadata, payload)?;
 
         // Recieve and discard the response
-        let _response = protocol.receive_extended(VEXExtPacketChecks::ALL);
+        let _response = protocol.receive_extended(VexExtPacketChecks::ALL);
 
         Ok(())
     }
@@ -359,7 +359,7 @@ impl<T: Read + Write> VEXDevice<T> {
 
 
 
-impl<T: Read+ Write> Read for VEXDevice<T> {
+impl<T: Read+ Write> Read for VexDevice<T> {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, std::io::Error> {
         // Read data if we do nto have enough in the buffer
         if self.serial_buffer.len() < buf.len() {
