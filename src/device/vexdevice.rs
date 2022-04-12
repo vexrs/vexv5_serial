@@ -6,8 +6,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::io::{Read, Write};
 use std::{vec};
-
-use super::{V5DeviceVersion, VexProduct, V5ControllerChannel, VexVID, VexInitialFileMetadata, VexFiletransferMetadata, VexFileTarget, VexFileMode};
+use super::{V5DeviceVersion, VexProduct, V5ControllerChannel, VexVID, VexInitialFileMetadata, VexFiletransferMetadata, VexFileTarget, VexFileMode, VexFileMetadataByIndex, VexFileMetadataByName, VexFileMetadataSet};
 
 
 
@@ -70,7 +69,7 @@ impl<T: Read + Write> VEXDevice<T> {
     fn switch_channel(&mut self, channel: Option<V5ControllerChannel>) -> Result<()> {
         // If this is not a controller
         let info = self.get_device_version()?;
-        if let VexProduct::V5Controller(f) = info.product_type {
+        if let VexProduct::V5Controller(_) = info.product_type {
             // If the channel is none, then switch back to pit
             let channel = channel.unwrap_or(V5ControllerChannel::PIT);
 
@@ -153,7 +152,10 @@ impl<T: Read + Write> VEXDevice<T> {
     }
 
     /// Executes a program file on the v5 brain's flash.
-    pub fn execute_program_file(&self, file_name: String) -> Result<()> {
+    pub fn execute_program_file(&self, file_name: String, vid: Option<VexVID>, options: Option<u8>) -> Result<()> {
+
+        let vid = vid.unwrap_or_default();
+        let options = options.unwrap_or_default();
 
         // Convert the name to ascii
         let file_name = file_name.as_ascii_str()?;
@@ -168,7 +170,7 @@ impl<T: Read + Write> VEXDevice<T> {
         
 
         // Create the payload
-        let payload: (u8, u8, [u8; 24]) = (VexVID::USER as u8, 0, file_name_bytes);
+        let payload: (u8, u8, [u8; 24]) = (vid as u8, options, file_name_bytes);
         let payload = bincode::serialize(&payload)?;
 
         // Borrow protocol as mut
@@ -270,10 +272,12 @@ impl<T: Read + Write> VEXDevice<T> {
     }
 
     /// Gets the metadata of a file from it's index number
-    pub fn get_file_metadata(&self, index: u8) -> Result<()> {
+    pub fn file_metadata_from_index(&self, index: u8, options: Option<u8>) -> Result<VexFileMetadataByIndex> {
+
+        let options = options.unwrap_or_default();
 
         // Pack together the payload
-        let payload = bincode::serialize(&(index, 0u8))?;
+        let payload = bincode::serialize(&(index, options))?;
 
         // Borrow the protocol wrapper
         let mut protocol = self.protocol.borrow_mut();
@@ -285,8 +289,69 @@ impl<T: Read + Write> VEXDevice<T> {
         let response = protocol.receive_extended(VEXExtPacketChecks::ALL)?;
 
         // Unpack the data
-        
+        let response: VexFileMetadataByIndex = bincode::deserialize(&response.1)?;
 
+        Ok(response)
+    }
+
+    /// Gets the metadata of a file from it's name
+    pub fn file_metadata_from_name(&self, name: String, vid: Option<VexVID>, options: Option<u8>) -> Result<VexFileMetadataByName> {
+
+        let vid = vid.unwrap_or_default();
+        let options = options.unwrap_or_default();
+
+        // Convert the file name into a 24 byte long ASCII string
+        let file_name = name.as_ascii_str()?;
+        let mut file_name_bytes: [u8; 24] = [0; 24];
+        for (i, byte) in file_name.as_slice().iter().enumerate() {
+            if i + 1 > 24 {
+                break;
+            }
+            file_name_bytes[i] = *byte as u8;
+        }
+
+        // Pack together the payload
+        let payload = bincode::serialize(&(vid as u8, options, file_name_bytes))?;
+
+        // Borrow the protocol wrapper
+        let mut protocol = self.protocol.borrow_mut();
+
+        // Send the command
+        protocol.send_extended(VEXDeviceCommand::GetMetadataByFilename, payload)?;
+
+        // Recieve the response
+        let response = protocol.receive_extended(VEXExtPacketChecks::ALL)?;
+
+        // Unpack the data
+        let response: VexFileMetadataByName = bincode::deserialize(&response.1)?;
+
+        Ok(response)
+    }
+
+    /// Sets the metadata of a program file
+    pub fn set_program_file_metadata(&self, name: String, metadata: VexFileMetadataSet) -> Result<()> {
+
+        // Convert the file name into a 24 byte long ASCII string
+        let file_name = name.as_ascii_str()?;
+        let mut file_name_bytes: [u8; 24] = [0; 24];
+        for (i, byte) in file_name.as_slice().iter().enumerate() {
+            if i + 1 > 24 {
+                break;
+            }
+            file_name_bytes[i] = *byte as u8;
+        }
+
+        // Pack together the payload
+        let payload = bincode::serialize(&(metadata, file_name_bytes))?;
+
+        // Borrow the protocol wrapper
+        let mut protocol = self.protocol.borrow_mut();
+
+        // Send the command
+        protocol.send_extended(VEXDeviceCommand::SetFileMetadata, payload)?;
+
+        // Recieve and discard the response
+        let _response = protocol.receive_extended(VEXExtPacketChecks::ALL);
 
         Ok(())
     }

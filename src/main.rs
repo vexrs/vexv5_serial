@@ -30,7 +30,7 @@ fn main() -> Result<()> {
     let info = d.get_device_version();
     println!("{:?}", info);
     // Try to start a program
-    d.execute_program_file("slot_2.bin".to_string())?;
+    d.execute_program_file("slot_2.bin".to_string(), None, None)?;
 
     // Loop through, recieving serial data
     loop {

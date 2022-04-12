@@ -21,7 +21,7 @@ pub enum VexFileMode {
     Download(VexFileTarget, bool),
 }
 
-/// Represents vex file metadata when initiating
+/// Cex file metadata when initiating
 /// a transfer
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct VexInitialFileMetadata {
@@ -55,7 +55,7 @@ impl Default for VexInitialFileMetadata {
 }
 
 
-/// Represents a flag that tells the brain what to do
+/// A flag that tells the brain what to do
 /// after a file transfer is complete
 pub enum VexFiletransferFinished {
     DoNothing = 0b0,
@@ -77,3 +77,42 @@ pub struct VexFiletransferMetadata {
     pub crc: u32,
 }
 
+
+
+
+/// File metadata returned when referencing by the file's index
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct VexFileMetadataByIndex {
+    idx: u8,
+    size: u32,
+    addr: u32,
+    crc: u32,
+    r#type: [u8; 4],
+    timestamp: u32,
+    version: u32,
+    filename: [u8; 24],
+}
+
+/// File metadata returned when referencing the file by name
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct VexFileMetadataByName {
+    linked_vid: super::VexVID,
+    size: u32,
+    addr: u32,
+    crc: u32,
+    r#type: [u8; 4],
+    timestamp: u32,
+    version: u32,
+    linked_filename: [u8; 24],
+}
+
+/// File metadata that is sent to the brain to be set
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct VexFileMetadataSet {
+    vid: super::VexVID,
+    options: u8,
+    addr: u32,
+    r#type: [u8; 4],
+    timestamp: u32,
+    version: u32,
+}

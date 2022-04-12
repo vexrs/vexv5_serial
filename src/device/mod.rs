@@ -91,6 +91,12 @@ pub enum VexVID { // I also have no idea what this is.
     MW = 32, // IDK what this one is.
 }
 
+impl Default for VexVID {
+    fn default() -> VexVID {
+        VexVID::USER
+    }
+}
+
 
 
 /// Finds which V5 serial ports to use.

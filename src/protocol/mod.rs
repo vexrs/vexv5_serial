@@ -40,6 +40,7 @@ pub enum VEXDeviceCommand {
     GetMetadataByFileIndex = 0x17,
     ExecuteFile = 0x18,
     GetMetadataByFilename = 0x19,
+    SetFileMetadata = 0x1A,
     SerialReadWrite = 0x27,
     Extended = 0x56,
     GetSystemVersion = 0xA4,
