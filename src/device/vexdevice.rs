@@ -271,7 +271,6 @@ impl<T: Read + Write> VexDevice<T> {
             let payload = bincode::serialize(&payload)?;
             
             // Send the command
-            let mut protocol = self.protocol.borrow_mut();
             protocol.send_extended(VexDeviceCommand::SetLinkedFilename, payload)?;
             protocol.receive_extended(VexExtPacketChecks::ALL)?;
 
@@ -456,7 +455,7 @@ impl<T: Read + Write> VexDevice<T> {
 
 impl<T: Read+ Write> Read for VexDevice<T> {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, std::io::Error> {
-        // Read data if we do nto have enough in the buffer
+        // Read data if we do not have enough in the buffer
         if self.serial_buffer.len() < buf.len() {
             let _data = match self.read_serial(0) {
                 Ok(d) => d,
