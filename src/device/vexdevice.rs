@@ -431,7 +431,7 @@ impl<T: Read + Write> VexDevice<T> {
 
         // Apply the erase all option if needed
         let options: u8 = if erase_all {
-            0x00 | 0x80
+            0x80
         } else {
             0x00
         };

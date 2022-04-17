@@ -1,9 +1,8 @@
 
-use std::{time::Duration, io::Read};
+use std::time::Duration;
 
 use anyhow::{Result};
-use vexv5_serial::{*, device::VexInitialFileMetadata, device::{VexFileMetadataByName, VexVID}};
-use ascii::AsAsciiStr;
+use vexv5_serial::{*, device::VexInitialFileMetadata, device::{VexVID}, protocol::VEX_CRC32};
 
 fn main() -> Result<()> {
     let p = ports::discover_vex_ports()?;
@@ -35,17 +34,17 @@ fn main() -> Result<()> {
         // Get the info of slot_1.ini
         let metadata = d.file_metadata_from_name("slot_1.ini".to_string(), None, None)?;
         
-        // Read in the slot_1.ini file on the brain
-        let mut tdata = VexInitialFileMetadata::default();
-        tdata.addr = metadata.addr;
-        tdata.vid = VexVID::USER;
+        // Read in the data from the file
+        let data = std::fs::read("slot_1.ini")?;
+
+        // Write to the slot_1.ini file on the brain
         let mut fh = d.open("slot_1.ini".to_string(), Some(VexInitialFileMetadata {
-            function: device::VexFileMode::Download(device::VexFileTarget::FLASH, false),
+            function: device::VexFileMode::Upload(device::VexFileTarget::FLASH, true),
             vid: num::FromPrimitive::from_u8(metadata.linked_vid).unwrap_or(VexVID::USER),
             options: 0,
-            length: 0,
+            length: data.len() as u32,
             addr: metadata.addr,
-            crc: 0,
+            crc: crc::Crc::<u32>::new(&VEX_CRC32).checksum(&data),
             r#type: *b"bin\0",
             timestamp: 0,
             version: 0x01000000,
@@ -53,11 +52,8 @@ fn main() -> Result<()> {
         }))?;
 
 
-        // Read in data
-        let data = fh.read_all()?;
-
-        // Save to file
-        std::fs::write("slot_1.ini", data)?;
+        // Write data
+        fh.write_all(data)?;
         
         // Close file
         fh.close(device::VexFiletransferFinished::ShowRunScreen)?;
