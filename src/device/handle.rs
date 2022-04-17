@@ -21,6 +21,7 @@ pub struct V5FileHandle<T>
     pub transfer_metadata: VexFiletransferMetadata,
     pub metadata: VexInitialFileMetadata,
     pub file_name: AsciiString,
+    pub closed: bool,
 }
 
 impl<T: Write + Read> V5FileHandle<T> {
@@ -30,10 +31,12 @@ impl<T: Write + Read> V5FileHandle<T> {
 
         // Send the exit command
         self.device.borrow_mut().send_extended(VexDeviceCommand::ExitFile, bincode::serialize(&(on_exit as u8))?)?;
-
+        
         // Get the response
         let response = self.device.borrow_mut().receive_extended(VexExtPacketChecks::ALL)?;
         
+        self.closed = true;
+
         // Return the response data
         Ok(response.1)
     }
@@ -164,6 +167,8 @@ impl<T: Write + Read> V5FileHandle<T> {
 
 impl<T: Write + Read> Drop for V5FileHandle<T> {
     fn drop(&mut self) {
-        self.close(VexFiletransferFinished::DoNothing).unwrap_or_default();
+        if !self.closed {
+            self.close(VexFiletransferFinished::DoNothing).unwrap_or_default();
+        }
     }
 }

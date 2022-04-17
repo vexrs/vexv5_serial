@@ -34,12 +34,13 @@ pub struct VexInitialFileMetadata {
     pub r#type: [u8; 4],
     pub timestamp: u32,
     pub version: u32,
+    pub linked_name: Option<[u8; 24]>
 }
 
 impl Default for VexInitialFileMetadata {
     fn default() -> Self {
         VexInitialFileMetadata {
-            function: VexFileMode::Upload(VexFileTarget::FLASH, true),
+            function: VexFileMode::Download(VexFileTarget::FLASH, true),
             vid: super::VexVID::USER,
             options: 0,
             length: 0,
@@ -50,6 +51,7 @@ impl Default for VexInitialFileMetadata {
             timestamp: (chrono::Utc::now().timestamp() - chrono::Utc.ymd(2000, 1, 1)
                             .and_hms(0, 0, 0).timestamp()).try_into().unwrap(),
             version: 0,
+            linked_name: None,
         }
     }
 }
@@ -83,36 +85,36 @@ pub struct VexFiletransferMetadata {
 /// File metadata returned when referencing by the file's index
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct VexFileMetadataByIndex {
-    idx: u8,
-    size: u32,
-    addr: u32,
-    crc: u32,
-    r#type: [u8; 4],
-    timestamp: u32,
-    version: u32,
-    filename: [u8; 24],
+    pub idx: u8,
+    pub size: u32,
+    pub addr: u32,
+    pub crc: u32,
+    pub r#type: [u8; 4],
+    pub timestamp: u32,
+    pub version: u32,
+    pub filename: [u8; 24],
 }
 
 /// File metadata returned when referencing the file by name
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct VexFileMetadataByName {
-    linked_vid: super::VexVID,
-    size: u32,
-    addr: u32,
-    crc: u32,
-    r#type: [u8; 4],
-    timestamp: u32,
-    version: u32,
-    linked_filename: [u8; 24],
+    pub linked_vid: u8,
+    pub size: u32,
+    pub addr: u32,
+    pub crc: u32,
+    pub r#type: [u8; 4],
+    pub timestamp: u32,
+    pub version: u32,
+    pub linked_filename: [u8; 24],
 }
 
 /// File metadata that is sent to the brain to be set
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct VexFileMetadataSet {
-    vid: super::VexVID,
-    options: u8,
-    addr: u32,
-    r#type: [u8; 4],
-    timestamp: u32,
-    version: u32,
+    pub vid: u8,
+    pub options: u8,
+    pub addr: u32,
+    pub r#type: [u8; 4],
+    pub timestamp: u32,
+    pub version: u32,
 }

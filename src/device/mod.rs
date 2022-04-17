@@ -82,7 +82,7 @@ pub enum V5ControllerChannel {
 
 /// Different possible vex VIDs
 #[repr(u8)]
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, FromPrimitive)]
 pub enum VexVID { // I also have no idea what this is.
     USER = 1,
     SYSTEM = 15,

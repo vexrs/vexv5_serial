@@ -87,11 +87,11 @@ impl<T: Read + Write> VexDevice<T> {
 
     /// Acts as a context manager to switch to a different controller channel.
     pub fn with_channel<F>(&mut self, channel: V5ControllerChannel, f: F) -> Result<()>
-        where F: Fn() -> Result<()> {
+        where F: Fn(&mut VexDevice<T>) -> Result<()> {
         self.switch_channel(Some(channel))?;
-        let res = f();
+        f(self)?;
         self.switch_channel(None)?;
-        res
+        Ok(())
     }
 
     /// Reads in serial data from the system port.
@@ -259,21 +259,30 @@ impl<T: Read + Write> VexDevice<T> {
             crc: response.2,
         };
 
-        // If this is opening for write, then 
-        // set the linked filename
-        if let VexFileMode::Upload(_, _) = file_metadata.function {
+        // If the linked filename was set, then update it
+        if let Some(lnf) = file_metadata.linked_name {
+
+            // Convert the linked name into a 24 byte long ASCII string
+            let mut lnf_bytes: [u8; 24] = [0; 24];
+            for (i, byte) in lnf.as_ascii_str()?.as_slice().iter().enumerate() {
+                if i + 1 > 24 {
+                    break;
+                }
+                lnf_bytes[i] = *byte as u8;
+            }
+
+
             // Create the payload
             let payload: (u8, u8, [u8; 24]) = (
                 file_metadata.vid as u8,
                 file_metadata.options | ft.2,
-                file_name_bytes
+                lnf
             );
             let payload = bincode::serialize(&payload)?;
-            
             // Send the command
             protocol.send_extended(VexDeviceCommand::SetLinkedFilename, payload)?;
             protocol.receive_extended(VexExtPacketChecks::ALL)?;
-
+            
         }
 
         // Create the file handle
@@ -282,6 +291,7 @@ impl<T: Read + Write> VexDevice<T> {
             transfer_metadata: response,
             metadata: file_metadata,
             file_name: file_name.to_ascii_string(),
+            closed: false,
         };
 
         // Return the handle
@@ -346,7 +356,7 @@ impl<T: Read + Write> VexDevice<T> {
 
         // Pack together the payload
         let payload = bincode::serialize(&(vid as u8, options, file_name_bytes))?;
-
+        
         // Borrow the protocol wrapper
         let mut protocol = self.protocol.borrow_mut();
 
@@ -355,10 +365,10 @@ impl<T: Read + Write> VexDevice<T> {
 
         // Recieve the response
         let response = protocol.receive_extended(VexExtPacketChecks::ALL)?;
-
+        
         // Unpack the data
         let response: VexFileMetadataByName = bincode::deserialize(&response.1)?;
-
+        
         Ok(response)
     }
 

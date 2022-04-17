@@ -2,7 +2,7 @@
 use std::{time::Duration, io::Read};
 
 use anyhow::{Result};
-use vexv5_serial::*;
+use vexv5_serial::{*, device::VexInitialFileMetadata, device::{VexFileMetadataByName, VexVID}};
 use ascii::AsAsciiStr;
 
 fn main() -> Result<()> {
@@ -30,20 +30,41 @@ fn main() -> Result<()> {
     
     let info = d.get_device_version();
     println!("{:?}", info);
-    
-    // Read in the slot_1.ini file on the brain
-    let mut fh = d.open("slot_2.ini".to_string(), None)?;
+
+    d.with_channel(device::V5ControllerChannel::UPLOAD, |d| {
+        // Get the info of slot_1.ini
+        let metadata = d.file_metadata_from_name("slot_1.ini".to_string(), None, None)?;
+        
+        // Read in the slot_1.ini file on the brain
+        let mut tdata = VexInitialFileMetadata::default();
+        tdata.addr = metadata.addr;
+        tdata.vid = VexVID::USER;
+        let mut fh = d.open("slot_1.ini".to_string(), Some(VexInitialFileMetadata {
+            function: device::VexFileMode::Download(device::VexFileTarget::FLASH, false),
+            vid: num::FromPrimitive::from_u8(metadata.linked_vid).unwrap_or(VexVID::USER),
+            options: 0,
+            length: 0,
+            addr: metadata.addr,
+            crc: 0,
+            r#type: *b"bin\0",
+            timestamp: 0,
+            version: 0x01000000,
+            linked_name: None,
+        }))?;
 
 
-    // Read in data
-    let data = fh.read_all()?;
+        // Read in data
+        let data = fh.read_all()?;
 
-    // Save to file
-    std::fs::write("slot_1.ini", data)?;
+        // Save to file
+        std::fs::write("slot_1.ini", data)?;
+        
+        // Close file
+        fh.close(device::VexFiletransferFinished::ShowRunScreen)?;
+        
+        Ok(())
+    })?;
 
-    // Close file
-    fh.close(device::VexFiletransferFinished::ShowRunScreen)?;
 
-
-    loop {}
+    Ok(())
 }
