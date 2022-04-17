@@ -56,9 +56,9 @@ impl<T: Write + Read> V5FileHandle<T> {
 
         // Recieve the response
         let response = self.device.borrow_mut().receive_extended(VexExtPacketChecks::CRC)?;
-
+        
         // Truncate to requested data (Ignore the integer sent in the first four bytes)
-        let offset = 4;
+        let offset = 3;
         let data = response.1[offset..offset + n_bytes as usize].to_vec();
 
         Ok(data)
@@ -83,8 +83,10 @@ impl<T: Write + Read> V5FileHandle<T> {
             };
             
             // Read the data and append it to the buffer
-            data.extend(self.read_len(i+self.metadata.addr, packet_size)?);
+            data.extend(self.read_len(i+self.metadata.addr, (packet_size + 3) & !3)?);
         }
+
+        let data = data[..length as usize].to_vec();
         Ok(data)
     }
 
