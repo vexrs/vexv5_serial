@@ -92,7 +92,7 @@ impl<T: Write + Read> V5FileHandle<T> {
 
     /// Writes a vector of data up to max_packet_size to the file
     /// at the specified offset.
-    fn write_some(&self, offset: u32, data: Vec<u8>) -> Result<()> {
+    pub fn write_some(&self, offset: u32, data: Vec<u8>) -> Result<()> {
 
         // Pad the payload to have a length that is a multiple of four
         let mut data = data;
