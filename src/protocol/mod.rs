@@ -20,7 +20,7 @@ pub const VEX_CRC32: Algorithm<u32> = Algorithm {
 };
 
 /// The default timeout should be 0.1 seconds.
-pub const DEFAULT_TIMEOUT_SECONDS: u64 = 3;
+pub const DEFAULT_TIMEOUT_SECONDS: u64 = 5;
 pub const DEFAULT_TIMEOUT_NS: u32 = 0;
 
 

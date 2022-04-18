@@ -1,10 +1,11 @@
 use crate::ports::{VexSerialInfo};
-use crate::protocol::{V5Protocol, VexDeviceCommand, VexExtPacketChecks};
+use crate::protocol::{V5Protocol, VexDeviceCommand, VexExtPacketChecks, DEFAULT_TIMEOUT_SECONDS, DEFAULT_TIMEOUT_NS};
 use anyhow::{Result};
 use ascii::AsAsciiStr;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::io::{Read, Write};
+use std::time::Duration;
 use std::{vec};
 use super::{V5DeviceVersion, VexProduct, V5ControllerChannel, VexVID, VexInitialFileMetadata, VexFiletransferMetadata, VexFileTarget, VexFileMode, VexFileMetadataByIndex, VexFileMetadataByName, VexFileMetadataSet, VexFiletransferFinished};
 
@@ -43,6 +44,11 @@ impl<T: Read + Write> VexDevice<T> {
             user_port_writer: u.1,
             serial_buffer: vec![],
         })
+    }
+
+    /// Sets the timeout on the protocol layer
+    pub fn set_timeout(&mut self, timeout: Option<Duration>) {
+        self.protocol.borrow_mut().timeout = timeout.unwrap_or_else(||{Duration::new(DEFAULT_TIMEOUT_SECONDS, DEFAULT_TIMEOUT_NS)});
     }
 
     /// Retrieves the version of the device

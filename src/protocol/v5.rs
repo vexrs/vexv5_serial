@@ -11,7 +11,7 @@ pub struct V5Protocol<T>
     /// This can be a file, serial port, socket, or anything else.
     /// This struct does not care.
     wraps: T,
-    timeout: Duration,
+    pub timeout: Duration,
 }
 
 impl<T> V5Protocol<T>
