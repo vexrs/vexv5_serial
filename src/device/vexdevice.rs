@@ -125,7 +125,12 @@ impl<T: Read + Write> VexDevice<T> {
         // Get the data.
         let data: Vec<u8> = self.serial_buffer.drain(0..n_bytes).collect();
 
-        Ok(data)
+        // If n_bytes is zero, return the entire buffer
+        if n_bytes == 0 {
+            Ok(self.serial_buffer.drain(..).collect())
+        } else {
+            Ok(data)
+        }
     }
 
     /// Reads serial data from the system port
