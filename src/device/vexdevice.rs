@@ -131,7 +131,7 @@ impl<T: Read + Write> VexDevice<T> {
     /// Reads serial data from the system port
     /// Because the system port primarily sends commands,
     /// serial data should be sent as a command.
-    fn read_serial_raw(&self) -> Result<Vec<u8>> {
+    pub fn read_serial_raw(&self) -> Result<Vec<u8>> {
         // The way PROS does this is by caching data until a \00 is received.
         // This is because PROS uses COBS to send data. We will be doing the same in another function.
         // The PROS source code also notes that read and write are the same command and
