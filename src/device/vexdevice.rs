@@ -117,7 +117,7 @@ impl<T: Read + Write> VexDevice<T> {
                 self.serial_buffer.extend(buf);
             }
 
-            if self.serial_buffer.len() >= n_bytes {
+            if self.serial_buffer.len() >= n_bytes || n_bytes == 0 {
                 break;
             }
         }
