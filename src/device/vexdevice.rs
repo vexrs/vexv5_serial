@@ -502,3 +502,14 @@ impl<T: Read+ Write> Read for VexDevice<T> {
         Ok(len)
     }
 }
+
+
+/// Raises error for now if we try to write
+impl<T: Read + Write> Write for VexDevice<T> {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        Err(std::io::Error::new(std::io::ErrorKind::Other, "Unimplemented"))
+    }
+    fn flush(&mut self) -> std::io::Result<()> {
+        Err(std::io::Error::new(std::io::ErrorKind::Other, "Unimplemented"))
+    }
+}
