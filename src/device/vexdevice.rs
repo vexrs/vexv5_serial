@@ -479,12 +479,13 @@ impl<T: Read+ Write> Read for VexDevice<T> {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, std::io::Error> {
         // Read data if we do not have enough in the buffer
         if self.serial_buffer.len() < buf.len() {
-            let _data = match self.read_serial(0) {
+            let data = match self.read_serial(0) {
                 Ok(d) => d,
                 Err(e) => {
                     return Err(std::io::Error::new(std::io::ErrorKind::Other, e.to_string()));
                 }
             };
+            self.serial_buffer.extend(data);
         }
         
 
