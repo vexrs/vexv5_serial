@@ -123,7 +123,7 @@ impl<T: Read + Write> VexDevice<T> {
         }
 
         
-
+        
         // If n_bytes is zero, return the entire buffer
         if n_bytes == 0 {
             Ok(self.serial_buffer.drain(..).collect())
@@ -486,7 +486,7 @@ impl<T: Read+ Write> Read for VexDevice<T> {
                 }
             };
         }
-        println!("{:?}", self.serial_buffer);
+        
 
         // Find what length to read
         let len = std::cmp::min(self.serial_buffer.len(), buf.len());
