@@ -163,6 +163,63 @@ impl<T: Read + Write> VexDevice<T> {
         Ok(response.1)
     }
 
+
+    /// Writes data to the serial port
+    pub fn write_serial(&mut self, data: Vec<u8>) -> Result<usize> {
+
+        // Save this here to get around cloning the data later
+        let len = data.len();
+
+        // If the user port is available, use it.
+        // If not, then default to the serial port
+        if let Some(w) = &mut self.user_port_writer {
+            w.write_all(&data)?;
+        } else {
+            self.write_serial_raw(data)?;
+        }
+
+        Ok(len)
+    }
+
+    /// Writes serial data to the system port
+    /// Because the system port primarily sends command,
+    /// sserial data should be sent as a command.
+    pub fn write_serial_raw(&self, data: Vec<u8>) -> Result<()> {
+
+        // For some reason, this is not implemented in PROS-CLI
+        // I do not know why, probably because it is not needed
+        // Anyways, we will be implementing it here.
+
+        // Borrow the protocol wrapper as mutable
+        let mut protocol = self.protocol.borrow_mut();
+
+        // We use a maximum packet size of 224, because PROS uses this
+        // and their implementation works :)
+        let max_size = 224;
+
+        // Slice up the data into max_size bits and send each one one-by-one
+        let size = data.len();
+
+        for i in (0..size).step_by(max_size) {
+            // Determine how much data to send
+            let packet_size = if i + max_size > size {
+                size - i
+            } else {
+                max_size
+            };
+
+            // Pack together the data to send
+            let mut payload = vec![0x01, 0x00];
+            payload.extend(&data[i..i+packet_size]);
+
+            // Send the payload
+            protocol.send_extended(VexDeviceCommand::SerialReadWrite, payload)?;
+
+        }
+
+        Ok(())
+    }
+
     /// Executes a program file on the v5 brain's flash.
     pub fn execute_program_file(&self, file_name: String, vid: Option<VexVID>, options: Option<u8>) -> Result<()> {
 
@@ -509,9 +566,22 @@ impl<T: Read+ Write> Read for VexDevice<T> {
 /// Raises error for now if we try to write
 impl<T: Read + Write> Write for VexDevice<T> {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        Err(std::io::Error::new(std::io::ErrorKind::Other, "Unimplemented"))
+        let res = self.write_serial(buf.to_vec());
+        match res {
+            Ok(l) => {
+                Ok(l)
+            },
+            Err(e) => Err(std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
+        }
     }
     fn flush(&mut self) -> std::io::Result<()> {
-        Err(std::io::Error::new(std::io::ErrorKind::Other, "Unimplemented"))
+        if let Some(w) = &mut self.user_port_writer {
+            w.flush()
+        } else {
+            match self.protocol.borrow_mut().flush() {
+                Ok(_) => { Ok(()) },
+                Err(e) => Err(std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
+            }
+        }
     }
 }
