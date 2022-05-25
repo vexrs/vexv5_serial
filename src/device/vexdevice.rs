@@ -95,11 +95,11 @@ impl<T: Read + Write> VexDevice<T> {
     pub fn with_channel<F>(&mut self, channel: V5ControllerChannel, f: F) -> Result<()>
         where F: Fn(&mut VexDevice<T>) -> Result<()> {
         self.switch_channel(Some(channel))?;
-        f(self)?;
+        let res = f(self);
         self.switch_channel(None)?;
-        Ok(())
+        res
     }
-
+    
     /// Reads in serial data from the system port.
     #[allow(clippy::unused_io_amount)]
     pub fn read_serial(&mut self, n_bytes: usize) -> Result<Vec<u8>> {
