@@ -9,7 +9,7 @@ const VEX_VID: u16 = 0x2888;
 /// The User port for communication with the user program.
 /// The System port for communicating with VexOS.
 /// And the Controller port for communicating with the VexV5 joystick
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum VexSerialType {
     User,
     System,
@@ -17,7 +17,7 @@ pub enum VexSerialType {
 }
 
 /// This structure incapsulates the information for a vex v5 serial port.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct VexSerialInfo {
     pub port_info: SerialPortInfo,
     pub port_type: VexSerialType,
@@ -68,10 +68,10 @@ pub fn discover_vex_ports() -> Result<Vec<VexSerialInfo>> {
 
                     // If the name contains User, it is a User port
                     if name.contains("User"){
-                        VexSerialType::System
+                        VexSerialType::User
                     } else if name.contains("Communications") {
                         // If the name contains Communications, is is a System port.
-                        VexSerialType::User
+                        VexSerialType::System
                     } else if match vex_ports.last() {
                             Some(p) => p.port_type == VexSerialType::System,
                             _ => false,
@@ -90,7 +90,7 @@ pub fn discover_vex_ports() -> Result<Vec<VexSerialInfo>> {
         }
 
     }
-
+    
     // Return the vector of discovered ports
     Ok(vex_ports)
 }
