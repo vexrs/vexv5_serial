@@ -7,3 +7,5 @@ edition = "2021"
 
 [dependencies]
 bincode = "2.0.0-rc.1"
+serialport = "4.2.0"
+anyhow = "1.0.0"
