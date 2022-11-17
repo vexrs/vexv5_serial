@@ -106,11 +106,11 @@ impl<T: Read + Write> VexDevice<T> {
         // If the buffer is too small, read in more
         loop {
             if let Some(w) = &mut self.user_port_writer {
-                // Max out at 255 bytes.
-                let mut buf = [0x0u8; 0xff];
+                // Read one byte at a time, because for some reason it blocks if we try to read more.
+                let mut buf = [0x0u8; 0x1];
 
                 // No read exact here, because we do not know how many bytes will be sent.
-                w.read(&mut buf)?;
+                w.read(&mut buf[..])?;
                 self.serial_buffer.extend(buf);
             } else {
                 let buf = self.read_serial_raw()?;

@@ -17,6 +17,7 @@ pub const VEX_CRC32: Algorithm<u32> = Algorithm {
     xorout: 0x00000000,
     check: 0x89A1897F,
     residue: 0x00000000,
+    width: 32,
 };
 
 /// The default timeout should be 0.1 seconds.
