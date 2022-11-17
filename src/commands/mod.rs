@@ -1,5 +1,11 @@
 // Module that contains all commands that can be sent to the v5
 
+mod kv;
+pub use kv::{KVRead, KVReadResponse};
+
+mod extended;
+pub use extended::{Extended, ExtendedResponse};
+
 /// A command trait that every command implements
 pub trait Command {
     type Response;

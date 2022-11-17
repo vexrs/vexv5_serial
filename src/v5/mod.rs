@@ -52,24 +52,30 @@ impl<S: Read + Write, U: Read+Write> Device<S, U> {
         }
     }
 
-    pub fn send_command<T, C: crate::commands::Command>(&mut self, command: C) -> Result<C::Response, crate::errors::DecodeError> {
+    /// Sends a command and recieves its response
+    pub fn send_request<C: crate::commands::Command>(&mut self, command: C) -> Result<C::Response, crate::errors::DecodeError> {
+        // Send the command over the system port
+        self.send_command(command)?;
+
+        // Wait for the response
+        self.response_for(command)
+    }
+
+    /// Sends a command
+    pub fn send_command<C: crate::commands::Command>(&mut self, command: C) -> Result<(), crate::errors::DecodeError> {
+
         // Encode the command
         let encoded = command.encode_request();
 
-        // Send the command over the system port
-        self.internal_send_command(encoded)?;
-
-        // Wait for the response
-        let res = self.response_for(command)?;
-
-        // Decode the response payload
-        C::decode_response_payload(res)
-    }
-
-    fn internal_send_command(&mut self, encoded: Vec<u8>) -> Result<(), crate::errors::DecodeError> {
+        // Write the command to the serial port
         match self.system_port.write_all(&encoded) {
             Ok(v) => Ok(v),
             Err(e) => Err(crate::errors::DecodeError::IoError(e))
         }
+    }
+
+    /// Recieves a response for a command
+    pub fn response_for<C: crate::commands::Command>(&mut self, command: C) -> Result<C::Response, crate::errors::DecodeError> {
+        todo!();
     }
 }
