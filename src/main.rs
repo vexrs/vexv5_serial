@@ -1,11 +1,17 @@
-fn main() {
+
+
+fn main() -> anyhow::Result<()>{
     let vex_ports = vexv5_serial::devices::get_socket_info_pairs().unwrap();
 
     println!("{:?}", vex_ports);
 
-    let device = vexv5_serial::v5::Device::new(vex_ports.0);
+    let ports = vexv5_serial::devices::open_device_pair(vex_ports[0].clone())?;
 
-    let res = device.send_command(vexv5_serial::commands::SystemKeyValueWrite("teamnumber", b"7122b"));
+    let mut device = vexv5_serial::v5::Device::new(vex_ports[0].clone(), ports.0, ports.1);
 
-    println!("{:?}", res)
+    let res = device.send_command(vexv5_serial::commands::KVRead("teamnumber"));
+
+    println!("{:?}", res);
+
+    Ok(())
 }

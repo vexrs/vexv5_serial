@@ -3,7 +3,7 @@ use super::Command;
 /// The structure base of all Simple commands
 /// The first u8 is the Simple command ID, the second is the 
 /// simple command's payload
-struct Simple<'a>(u8, &'a[u8]);
+pub struct Simple<'a>(pub u8, pub &'a[u8]);
 
 impl<'a> Command for Simple<'a> {
     type Response = SimpleResponse<'a>;
@@ -26,4 +26,4 @@ impl<'a> Command for Simple<'a> {
 }
 
 /// The Simple command response contains the Simple command id, and the response payload
-struct SimpleResponse<'a>(u8, &'a[u8]);
+pub struct SimpleResponse<'a>(pub u8, pub &'a[u8]);

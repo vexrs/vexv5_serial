@@ -1,5 +1,6 @@
 
 use anyhow::Result;
+use serialport::SerialPort;
 
 use self::ports::VexSerialInfo;
 
@@ -10,7 +11,7 @@ pub const SERIAL_TIMEOUT_NS: u32 = 0;
 
 
 /// Either a pair of user and system serial devices, or a single controller serial device
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum SocketInfoPairs {
     UserSystem(VexSerialInfo, VexSerialInfo),
     Controller(VexSerialInfo),
@@ -62,4 +63,53 @@ pub fn get_socket_info_pairs() -> Result<Vec<SocketInfoPairs>> {
     }
 
     Ok(pairs)
+}
+
+pub fn open_device_pair(wraps: SocketInfoPairs) -> Result<(Option<Box<dyn SerialPort>>, Box<dyn SerialPort>), crate::errors::DeviceError> {
+    // Create the user and system ports
+    Ok(match wraps {
+        SocketInfoPairs::UserSystem(system, user) => {
+            (
+                Some(match serialport::new(user.port_info.port_name, 115200)
+                .parity(serialport::Parity::None)
+                .timeout(std::time::Duration::new(crate::devices::SERIAL_TIMEOUT_SECONDS, crate::devices::SERIAL_TIMEOUT_NS))
+                .stop_bits(serialport::StopBits::One).open() {
+                    Ok(v) => Ok(v),
+                    Err(e) => Err(crate::errors::DeviceError::SerialportError(e)),
+                }?),
+
+                match serialport::new(system.port_info.port_name, 115200)
+                .parity(serialport::Parity::None)
+                .timeout(std::time::Duration::new(crate::devices::SERIAL_TIMEOUT_SECONDS, crate::devices::SERIAL_TIMEOUT_NS))
+                .stop_bits(serialport::StopBits::One).open() {
+                    Ok(v) => Ok(v),
+                    Err(e) => Err(crate::errors::DeviceError::SerialportError(e)),
+                }?
+            )
+        },
+        SocketInfoPairs::Controller(system) => {
+            (
+                None,
+                match serialport::new(system.port_info.port_name, 115200)
+                .parity(serialport::Parity::None)
+                .timeout(std::time::Duration::new(crate::devices::SERIAL_TIMEOUT_SECONDS, crate::devices::SERIAL_TIMEOUT_NS))
+                .stop_bits(serialport::StopBits::One).open() {
+                    Ok(v) => Ok(v),
+                    Err(e) => Err(crate::errors::DeviceError::SerialportError(e)),
+                }?
+            )
+        },
+        SocketInfoPairs::SystemOnly(system) => {
+            (
+                None,
+                match serialport::new(system.port_info.port_name, 115200)
+                .parity(serialport::Parity::None)
+                .timeout(std::time::Duration::new(crate::devices::SERIAL_TIMEOUT_SECONDS, crate::devices::SERIAL_TIMEOUT_NS))
+                .stop_bits(serialport::StopBits::One).open() {
+                    Ok(v) => Ok(v),
+                    Err(e) => Err(crate::errors::DeviceError::SerialportError(e)),
+                }?
+            )
+        },
+    })
 }

@@ -6,6 +6,9 @@ pub use kv::{KVRead, KVReadResponse};
 mod extended;
 pub use extended::{Extended, ExtendedResponse};
 
+mod simple;
+pub use simple::{Simple, SimpleResponse};
+
 /// A command trait that every command implements
 pub trait Command {
     type Response;

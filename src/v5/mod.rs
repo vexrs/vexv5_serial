@@ -10,41 +10,8 @@ pub struct Device<S: Read + Write, U: Read+Write> {
 }
 
 impl<S: Read + Write, U: Read+Write> Device<S, U> {
-    pub fn new(wraps: SocketInfoPairs) -> Self {
-        // Create the user and system ports
-        let (user, system) = match wraps {
-            SocketInfoPairs::UserSystem(system, user) => {
-                (
-                    serialport::new(user.port_info.port_name, 115200)
-                    .parity(serialport::Parity::None)
-                    .timeout(std::time::Duration::new(crate::devices::SERIAL_TIMEOUT_SECONDS, crate::devices::SERIAL_TIMEOUT_NS))
-                    .stop_bits(serialport::StopBits::One).open()?,
-
-                    serialport::new(system.port_info.port_name, 115200)
-                    .parity(serialport::Parity::None)
-                    .timeout(std::time::Duration::new(crate::devices::SERIAL_TIMEOUT_SECONDS, crate::devices::SERIAL_TIMEOUT_NS))
-                    .stop_bits(serialport::StopBits::One).open()?
-                )
-            },
-            SocketInfoPairs::Controller(system) => {
-                (
-                    None,
-                    serialport::new(system.port_info.port_name, 115200)
-                    .parity(serialport::Parity::None)
-                    .timeout(std::time::Duration::new(crate::devices::SERIAL_TIMEOUT_SECONDS, crate::devices::SERIAL_TIMEOUT_NS))
-                    .stop_bits(serialport::StopBits::One).open()?
-                )
-            },
-            SocketInfoPairs::SystemOnly(system) => {
-                (
-                    None,
-                    serialport::new(system.port_info.port_name, 115200)
-                    .parity(serialport::Parity::None)
-                    .timeout(std::time::Duration::new(crate::devices::SERIAL_TIMEOUT_SECONDS, crate::devices::SERIAL_TIMEOUT_NS))
-                    .stop_bits(serialport::StopBits::One).open()?
-                )
-            },
-        };
+    pub fn new(wraps: SocketInfoPairs, user: Option<U>, system: S) -> Self {
+        
         Device {
             wrapped_pair: wraps,
             system_port: system,
@@ -53,7 +20,7 @@ impl<S: Read + Write, U: Read+Write> Device<S, U> {
     }
 
     /// Sends a command and recieves its response
-    pub fn send_request<C: crate::commands::Command>(&mut self, command: C) -> Result<C::Response, crate::errors::DecodeError> {
+    pub fn send_request<C: crate::commands::Command + Copy>(&mut self, command: C) -> Result<C::Response, crate::errors::DecodeError> {
         // Send the command over the system port
         self.send_command(command)?;
 
@@ -62,7 +29,7 @@ impl<S: Read + Write, U: Read+Write> Device<S, U> {
     }
 
     /// Sends a command
-    pub fn send_command<C: crate::commands::Command>(&mut self, command: C) -> Result<(), crate::errors::DecodeError> {
+    pub fn send_command<C: crate::commands::Command + Copy>(&mut self, command: C) -> Result<(), crate::errors::DecodeError> {
 
         // Encode the command
         let encoded = command.encode_request();
@@ -75,7 +42,7 @@ impl<S: Read + Write, U: Read+Write> Device<S, U> {
     }
 
     /// Recieves a response for a command
-    pub fn response_for<C: crate::commands::Command>(&mut self, command: C) -> Result<C::Response, crate::errors::DecodeError> {
+    pub fn response_for<C: crate::commands::Command + Copy>(&mut self, command: C) -> Result<C::Response, crate::errors::DecodeError> {
         todo!();
     }
 }

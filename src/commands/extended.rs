@@ -3,7 +3,7 @@ use super::Command;
 /// The structure base of all Extended commands
 /// The first u8 is the extended command ID, the second is the 
 /// extended command's payload
-struct Extended<'a>(u8, &'a[u8]);
+pub struct Extended<'a>(pub u8, pub &'a[u8]);
 
 impl<'a> Command for Extended<'a> {
     type Response = ExtendedResponse<'a>;
@@ -44,7 +44,7 @@ impl<'a> Command for Extended<'a> {
         packet.push((checksum & 0xff) as u8);
 
         // Now encode the simple command containing our extended packet and return
-        super::Simple(0x56, packet)
+        super::Simple(0x56, &packet).encode_request()
     }
 
     fn decode_response_payload(payload: Vec<u8>) -> Result<Self::Response, crate::errors::DecodeError> {
@@ -53,4 +53,4 @@ impl<'a> Command for Extended<'a> {
 }
 
 /// The extended command response contains the extended command id, and the response payload
-struct ExtendedResponse<'a>(u8, &'a[u8]);
+pub struct ExtendedResponse<'a>(pub u8, pub &'a[u8]);
