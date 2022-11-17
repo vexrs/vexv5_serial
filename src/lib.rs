@@ -1,9 +1,9 @@
 #![feature(arbitrary_enum_discriminant)]
 
 pub mod commands;
+pub mod v5;
+pub mod errors;
 pub mod devices;
-pub mod responses;
-pub mod checks;
 
 
 use crc::Algorithm;

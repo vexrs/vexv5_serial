@@ -5,6 +5,10 @@ use self::ports::VexSerialInfo;
 
 pub mod ports;
 
+pub const SERIAL_TIMEOUT_SECONDS: u64 = 50;
+pub const SERIAL_TIMEOUT_NS: u32 = 0;
+
+
 /// Either a pair of user and system serial devices, or a single controller serial device
 #[derive(Debug)]
 pub enum SocketInfoPairs {
