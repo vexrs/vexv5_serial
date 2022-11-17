@@ -25,7 +25,7 @@ impl<S: Read + Write, U: Read+Write> Device<S, U> {
         self.send_command(command)?;
 
         // Wait for the response
-        self.response_for(command)
+        self.response_for::<C>()
     }
 
     /// Sends a command
@@ -42,7 +42,7 @@ impl<S: Read + Write, U: Read+Write> Device<S, U> {
     }
 
     /// Recieves a response for a command
-    pub fn response_for<C: crate::commands::Command + Copy>(&mut self, command: C) -> Result<C::Response, crate::errors::DecodeError> {
-        todo!();
+    pub fn response_for<C: crate::commands::Command + Copy>(&mut self) -> Result<C::Response, crate::errors::DecodeError> {
+        C::decode_stream(&mut self.system_port, std::time::Duration::from_secs(10))
     }
 }

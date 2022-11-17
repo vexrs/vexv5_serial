@@ -4,6 +4,7 @@ pub mod commands;
 pub mod v5;
 pub mod errors;
 pub mod devices;
+pub mod checks;
 
 
 use crc::Algorithm;

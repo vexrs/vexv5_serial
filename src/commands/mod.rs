@@ -15,6 +15,6 @@ pub trait Command {
     /// Encodes the library->v5 request
     fn encode_request(self) -> Vec<u8>;
 
-    /// Decodes the payload of a v5->library response
-    fn decode_response_payload(payload: Vec<u8>) -> Result<Self::Response, crate::errors::DecodeError>;
+    /// Decodes a response from a stream
+    fn decode_stream<T: std::io::Read>(stream: &mut T, timeout: std::time::Duration) -> Result<Self::Response, crate::errors::DecodeError>;
 }

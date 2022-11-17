@@ -16,9 +16,17 @@ impl<'a> Command for KVRead<'a> {
         super::Extended(0x2e, &payload).encode_request()
     }
 
-    fn decode_response_payload(payload: Vec<u8>) -> Result<Self::Response, crate::errors::DecodeError> {
+    fn decode_stream<T: std::io::Read>(stream: &mut T, timeout: std::time::Duration) -> Result<Self::Response, crate::errors::DecodeError> {
         todo!()
     }
+
+    
+
+    
+
+    
+
+    
 }
 
 #[derive(Copy, Clone, Debug)]
