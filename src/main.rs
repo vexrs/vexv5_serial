@@ -9,7 +9,7 @@ fn main() -> anyhow::Result<()>{
 
     let mut device = vexv5_serial::v5::Device::new(vex_ports[0].clone(), ports.0, ports.1);
 
-    let res = device.send_command(vexv5_serial::commands::KVRead("teamnumber"));
+    let res = device.send_request(vexv5_serial::commands::KVRead("teamnumber"));
 
     println!("{:?}", res);
 

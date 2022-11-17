@@ -66,8 +66,8 @@ impl<'a> Command for Extended<'a> {
 
     fn encode_request(self) -> Vec<u8> {
         
-        // Create the empty extended packet
-        let mut packet = Vec::<u8>::new();
+        // Create the empty extended packet, with the extended command ID
+        let mut packet = vec![self.0];
 
         // Get the length of the payload
         let payload_length = self.1.len() as u16;
@@ -96,8 +96,10 @@ impl<'a> Command for Extended<'a> {
         // And append it to the packet
 
         // First the upper byte, then the lower byte (big endian)
-        packet.push(((checksum >> 8) & 0xff) as u8);
+        packet.push((checksum >> 8) as u8);
         packet.push((checksum & 0xff) as u8);
+
+        println!("{:?}", v5crc.checksum(&packet));
 
         // Now encode the simple command containing our extended packet and return
         super::Simple(0x56, &packet).encode_request()

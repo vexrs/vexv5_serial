@@ -33,12 +33,19 @@ impl<S: Read + Write, U: Read+Write> Device<S, U> {
 
         // Encode the command
         let encoded = command.encode_request();
-
+        
         // Write the command to the serial port
         match self.system_port.write_all(&encoded) {
-            Ok(v) => Ok(v),
-            Err(e) => Err(crate::errors::DecodeError::IoError(e))
-        }
+            Ok(_) => (),
+            Err(e) => return Err(crate::errors::DecodeError::IoError(e))
+        };
+
+        match self.system_port.flush() {
+            Ok(_) => (),
+            Err(e) => return Err(crate::errors::DecodeError::IoError(e))
+        };
+
+        Ok(())
     }
 
     /// Recieves a response for a command
