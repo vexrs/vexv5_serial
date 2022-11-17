@@ -1,4 +1,4 @@
-use serialport::SerialPortInfo;
+
 use anyhow::Result;
 
 use self::ports::VexSerialInfo;
