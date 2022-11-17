@@ -5,7 +5,7 @@ use super::Command;
 pub struct KVRead<'a> (pub &'a str);
 
 impl<'a> Command for KVRead<'a> {
-    type Response = KVReadResponse<'a>;
+    type Response = KVReadResponse;
 
     fn encode_request(self) -> Vec<u8> {
         // The payload is just the key, but zero terminated
@@ -17,17 +17,15 @@ impl<'a> Command for KVRead<'a> {
     }
 
     fn decode_stream<T: std::io::Read>(stream: &mut T, timeout: std::time::Duration) -> Result<Self::Response, crate::errors::DecodeError> {
-        todo!()
+
+        // Read in the extended packet
+        let packet = super::Extended::decode_stream(stream, timeout)?;
+
+        // The payload of the packet should just be the value of the kv store
+        Ok(KVReadResponse(packet.1))
     }
 
-    
-
-    
-
-    
-
-    
 }
 
-#[derive(Copy, Clone, Debug)]
-pub struct KVReadResponse<'a> (pub &'a [u8]);
+#[derive(Clone, Debug)]
+pub struct KVReadResponse (pub Vec<u8>);

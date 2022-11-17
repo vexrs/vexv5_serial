@@ -60,7 +60,7 @@ impl VexACKType {
             0xD4 => Ok(Self::NACKUninitializedTransfer),
             0xD5 => Ok(Self::NACKInitializationInvalid),
             0xD6 => Ok(Self::NACKLengthModFourNzero),
-            0xD6 => Ok(Self::NACKAddrNoMatch),
+            0xD7 => Ok(Self::NACKAddrNoMatch),
             0xD8 => Ok(Self::NACKDownloadLengthNoMatch),
             0xD9 => Ok(Self::NACKDirectoryNoExist),
             0xDA => Ok(Self::NACKNoFileRoom),
