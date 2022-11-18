@@ -21,11 +21,80 @@ impl<'a> Command for KVRead<'a> {
         // Read in the extended packet
         let packet = super::Extended::decode_stream(stream, timeout)?;
 
+        // If the command id is wrong, then error
+        if packet.0 != 0x2e {
+            return Err(crate::errors::DecodeError::ExpectedCommand(0x2e, packet.0));
+        }
+
         // The payload of the packet should just be the value of the kv store
-        Ok(KVReadResponse(packet.1))
+        // minus the null-terminator
+        // Suffix here is always &[0] so it will always return Some. We can just unwrap
+        Ok(KVReadResponse(String::from_utf8(packet.1.strip_suffix(&[0]).unwrap().to_vec())?))
     }
 
 }
 
+/// The response contains the string value of the key
 #[derive(Clone, Debug)]
-pub struct KVReadResponse (pub Vec<u8>);
+pub struct KVReadResponse (pub String);
+
+
+/// Writes a key-value entry to the brain
+#[derive(Copy, Clone)]
+pub struct KVWrite<'a> (pub &'a str, pub &'a str);
+
+impl<'a>Command for KVWrite<'a> {
+    type Response = KVWriteResponse;
+
+    fn encode_request(self) -> Vec<u8> {
+
+        // Convert the value to an array of bytes
+        let value = self.1.as_bytes();
+
+        // Certain keys have a maximum size
+        let packet_length = {
+            usize::min(self.1.len(),{
+                if self.0 == "teamnumber" {
+                    7
+                } else if self.0 == "robotname" {
+                    16
+                } else {
+                    254
+                }
+            })
+        };
+
+        // Trim the value to the maximum size and convert to a vec so we can push the null-terminator
+        let mut value = value[..packet_length].to_vec();
+        value.push(0); // Null terminator
+
+        // Likewise convert the key and add a null-terminator
+        let mut key = self.0.as_bytes().to_vec();
+        key.push(00);
+
+        // The payload is just b"{key}{value}"
+        // We will use key as the payload
+        key.extend(value);
+
+        // Send the extended command
+        super::Extended(0x2f, &key).encode_request()
+    }
+
+    fn decode_stream<T: std::io::Read>(stream: &mut T, timeout: std::time::Duration) -> Result<Self::Response, crate::errors::DecodeError> {
+        
+        // Decode as an extended packet
+        let packet = super::Extended::decode_stream(stream, timeout)?;
+
+        // If the command id is wrong, then error
+        if packet.0 != 0x2f {
+            return Err(crate::errors::DecodeError::ExpectedCommand(0x2e, packet.0));
+        }
+
+        println!("{:?}", packet.1);
+
+        Ok(KVWriteResponse())
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct KVWriteResponse();

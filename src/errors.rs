@@ -1,9 +1,13 @@
+use std::string::FromUtf8Error;
+
 use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum DecodeError {
     #[error("IO Error")]
     IoError(#[from] std::io::Error),
+    #[error("UTF8 decode error")]
+    UTF8Error(#[from] FromUtf8Error),
     #[error("timedout when waiting for header")]
     HeaderTimeout,
     #[error("expected an extended packet")]
@@ -16,6 +20,8 @@ pub enum DecodeError {
     InvalidAck,
     #[error("recieved a nack")]
     NACK(VexACKType),
+    #[error("expected command _ recieved command _")]
+    ExpectedCommand(u8, u8),
 }
 
 #[derive(Error, Debug)]

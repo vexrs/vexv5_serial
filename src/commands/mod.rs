@@ -1,7 +1,7 @@
 // Module that contains all commands that can be sent to the v5
 
 mod kv;
-pub use kv::{KVRead, KVReadResponse};
+pub use kv::{KVRead, KVReadResponse, KVWrite, KVWriteResponse};
 
 mod extended;
 pub use extended::{Extended, ExtendedResponse};
