@@ -50,8 +50,8 @@ impl<'a> Extended<'a> {
             }
         }
 
-        // Get the final payload value
-        let payload = match packet.1.get(2..) {
+        // Get the final payload value, removing the last two CRC bytes
+        let payload = match packet.1.get(2..packet.1.len()-2) {
             Some(v) => v,
             None => return Err(crate::errors::DecodeError::PacketLengthError)
         }.to_vec();
@@ -85,6 +85,9 @@ impl<'a> Command for Extended<'a> {
         // Add the payload to the packet
         packet.extend(self.1);
 
+        // Create the simple packet containing the extended packet
+        let mut packet =super::Simple(0x56, &packet).encode_request();
+
         // Now we need to add the CRC.
         // The CRC that the v5 uses is the common CRC_16_XMODEM.
         // This is defined in the lib.rs of this crate as the implementation the crc crate uses.
@@ -101,8 +104,8 @@ impl<'a> Command for Extended<'a> {
 
         println!("{:?}", v5crc.checksum(&packet));
 
-        // Now encode the simple command containing our extended packet and return
-        super::Simple(0x56, &packet).encode_request()
+        // Return the packet
+        packet
     }
 
     fn decode_stream<T: std::io::Read>(stream: &mut T, timeout: std::time::Duration) -> Result<Self::Response, crate::errors::DecodeError> {
