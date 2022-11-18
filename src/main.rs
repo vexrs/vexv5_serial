@@ -1,3 +1,5 @@
+use std::io::Read;
+
 
 
 fn main() -> anyhow::Result<()>{
@@ -7,11 +9,29 @@ fn main() -> anyhow::Result<()>{
 
     let mut device = vexv5_serial::v5::Device::new(ports.0, ports.1);
 
-    let _ = device.send_request(vexv5_serial::commands::KVWrite("teamnumber", "7122A"))?;
+    loop {
+        // Just read 1 byte at a time
+        let mut buf = [0u8; 0x40];
 
-    let res = device.send_request(vexv5_serial::commands::KVRead("teamnumber"))?;
+        // Ignore CRC errors
+        match device.read_serial(&mut buf) {
+            Ok(_) => Ok(()),
+            Err(e) => match e {
+                vexv5_serial::errors::DecodeError::CrcError => Ok(()),
+                _ => Err(e),
+            }
+        }?;
 
-    println!("{:?}", res);
+        // Convert buf to a vector
+        let buf = buf.to_vec();
 
+        
+
+        // Print the bytes as utf8
+        print!("{}", String::from_utf8(buf)?);
+
+        // Flush stdout
+        std::io::Write::flush(&mut std::io::stdout())?;
+    }
     Ok(())
 }
