@@ -12,6 +12,7 @@ use super::Command;
 /// 
 /// * `0` - The simple command id of the command to send. 0x56 is Extended command
 /// * `1` - The payload of the simple command being sent
+#[derive(Copy, Clone)]
 pub struct Simple<'a>(pub u8, pub &'a[u8]);
 
 impl<'a> Command for Simple<'a> {

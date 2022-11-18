@@ -16,6 +16,7 @@ use super::Command;
 /// 
 /// # Examples
 /// No examples are provided here. For implementation details, see a basic command such as `KVRead` to see how this can be used.
+#[derive(Copy, Clone)]
 pub struct Extended<'a>(pub u8, pub &'a[u8]);
 
 impl<'a> Extended<'a> {
