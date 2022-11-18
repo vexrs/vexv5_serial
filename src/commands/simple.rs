@@ -1,3 +1,8 @@
+//! Implements a structure for encoding and decoding simple commands.
+
+
+
+
 use super::Command;
 
 /// The structure base of all Simple commands

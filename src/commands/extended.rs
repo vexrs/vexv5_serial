@@ -1,3 +1,6 @@
+//! Implements a structure for encoding and decoding extended commands.
+
+
 use crate::errors::VexACKType;
 use crate::checks::VexExtPacketChecks;
 

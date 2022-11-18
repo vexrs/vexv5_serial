@@ -1,3 +1,5 @@
+//! Implements two structures: One for reading key-value entries on the brain, and one for writing key-value entries to the brain.
+
 use super::Command;
 
 /// Reads in a key-value entry from the brain.
