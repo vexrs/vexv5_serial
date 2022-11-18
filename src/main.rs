@@ -32,6 +32,14 @@ fn main() -> anyhow::Result<()>{
 
         // Flush stdout
         std::io::Write::flush(&mut std::io::stdout())?;
+
+        // Read a string
+        let mut s = String::new();
+        std::io::Stdin::read_line(&std::io::stdin(), &mut s)?;
+        s.strip_suffix("\n").unwrap();
+
+        // Send it over the serial port
+        device.write_serial(s.as_bytes())?;
     }
     Ok(())
 }

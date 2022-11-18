@@ -6,7 +6,7 @@ pub struct Device<S: Read + Write, U: Read+Write> {
     system_port: S,
     user_port: Option<U>,
     read_buffer: Vec<u8>,
-    user_read_size: usize,
+    user_read_size: u8,
 }
 
 impl<S: Read + Write, U: Read+Write> Device<S, U> {
@@ -21,7 +21,7 @@ impl<S: Read + Write, U: Read+Write> Device<S, U> {
     }
 
     /// Updates the size of the chunks to read from the system port when a user port is not available
-    pub fn update_user_read_size(&mut self, user_read_size: usize) {
+    pub fn update_user_read_size(&mut self, user_read_size: u8) {
         self.user_read_size = user_read_size;
     }
 
@@ -69,7 +69,7 @@ impl<S: Read + Write, U: Read+Write> Device<S, U> {
             // We do the same as PROS, reading 64 bytes and specifying upload channel for some reason
             // Except we only read up to 64 bytes at a time, so that the user can configure if they want to 
             // read smaller chunks (and thus bypass CRC errors from packet corruption, at the expense of speed)
-            let payload = vec![meta::V5ControllerChannel::UPLOAD as u8, usize::min(0x40, self.user_read_size)];
+            let payload = vec![meta::V5ControllerChannel::UPLOAD as u8, u8::min(0x40, self.user_read_size)];
 
             // Send the extended command 0x27
             let res = self.send_request(crate::commands::Extended(0x27, &payload))?;
@@ -104,6 +104,38 @@ impl<S: Read + Write, U: Read+Write> Device<S, U> {
         // Return the length of the data we read
         Ok(data_len)
     }
+
+    /// Writes to the user serial port over the system port
+    pub fn write_serial(&mut self, buf: &[u8]) -> Result<usize, crate::errors::DecodeError> {
+
+        // Use a maximum default packet size of 224
+        let max_size = 224;
+
+        // Cut the data into bits that are at most max_size in length, and send each one one at a time
+        let size = buf.len();
+
+        for i in (0..size).step_by(max_size) {
+
+            // Find ot how much data to send
+            let packet_size = if i + max_size > size {
+                size - i
+            } else {
+                max_size
+            };
+
+            // Put together the data into a custom extended command
+            let mut payload = vec![0x01, 0xff];
+            payload.extend_from_slice(&buf[i..i+packet_size]);
+
+            // Send the command. This is the same as read, but we define the length of data to read as 0xff.
+            let _ = self.send_request(crate::commands::Extended(0x27, &payload))?;
+
+            // The result should be empty
+        }
+
+        // This code should send every byte
+        Ok(size)
+    }
 }
 
 impl<S, U> std::io::Read for Device<S, U>
@@ -121,5 +153,16 @@ where S: Read + Write, U: Read + Write {
                 Err(e) => Err(std::io::Error::new(std::io::ErrorKind::Other, e))
             }
         }
+    }
+}
+
+impl<S, U> std::io::Write for Device<S, U>
+where S: Read + Write, U: Read + Write {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        todo!()
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        todo!()
     }
 }
