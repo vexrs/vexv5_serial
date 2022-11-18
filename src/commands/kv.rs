@@ -5,8 +5,10 @@ use super::Command;
 pub struct KVRead<'a> (pub &'a str);
 
 impl<'a> Command for KVRead<'a> {
-    type Response = KVReadResponse;
+    type Response = String;
 
+    /// Encodes a request for the value of a key-value store.
+    /// The &str in the struct body is used as the key
     fn encode_request(self) -> Vec<u8> {
         // The payload is just the key, but zero terminated
         let mut payload = self.0.as_bytes().to_vec();
@@ -16,6 +18,7 @@ impl<'a> Command for KVRead<'a> {
         super::Extended(0x2e, &payload).encode_request()
     }
 
+    /// Returns the String value of the key requested.
     fn decode_stream<T: std::io::Read>(stream: &mut T, timeout: std::time::Duration) -> Result<Self::Response, crate::errors::DecodeError> {
 
         // Read in the extended packet
@@ -29,14 +32,11 @@ impl<'a> Command for KVRead<'a> {
         // The payload of the packet should just be the value of the kv store
         // minus the null-terminator
         // Suffix here is always &[0] so it will always return Some. We can just unwrap
-        Ok(KVReadResponse(String::from_utf8(packet.1.strip_suffix(&[0]).unwrap().to_vec())?))
+        Ok(String::from_utf8(packet.1.strip_suffix(&[0]).unwrap().to_vec())?)
     }
 
 }
 
-/// The response contains the string value of the key
-#[derive(Clone, Debug)]
-pub struct KVReadResponse (pub String);
 
 
 /// Writes a key-value entry to the brain
@@ -44,8 +44,9 @@ pub struct KVReadResponse (pub String);
 pub struct KVWrite<'a> (pub &'a str, pub &'a str);
 
 impl<'a>Command for KVWrite<'a> {
-    type Response = KVWriteResponse;
+    type Response = ();
 
+    /// Requests an update of an entry the key-value store on the brain
     fn encode_request(self) -> Vec<u8> {
 
         // Convert the value to an array of bytes
@@ -80,6 +81,8 @@ impl<'a>Command for KVWrite<'a> {
         super::Extended(0x2f, &key).encode_request()
     }
 
+    /// This returns nothing (()), and serves only to verify that the request was recieved.
+    /// It will return an error if the request was recieved incorrectly.
     fn decode_stream<T: std::io::Read>(stream: &mut T, timeout: std::time::Duration) -> Result<Self::Response, crate::errors::DecodeError> {
         
         // Decode as an extended packet
@@ -92,9 +95,6 @@ impl<'a>Command for KVWrite<'a> {
 
         println!("{:?}", packet.1);
 
-        Ok(KVWriteResponse())
+        Ok(())
     }
 }
-
-#[derive(Clone, Debug)]
-pub struct KVWriteResponse();
