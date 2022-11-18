@@ -4,16 +4,14 @@ use crate::devices::SocketInfoPairs;
 
 /// The representation of a V5 device
 pub struct Device<S: Read + Write, U: Read+Write> {
-    wrapped_pair: SocketInfoPairs,
     system_port: S,
     user_port: Option<U>
 }
 
 impl<S: Read + Write, U: Read+Write> Device<S, U> {
-    pub fn new(wraps: SocketInfoPairs, user: Option<U>, system: S) -> Self {
+    pub fn new(system: S, user: Option<U>) -> Self {
         
         Device {
-            wrapped_pair: wraps,
             system_port: system,
             user_port: user
         }

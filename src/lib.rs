@@ -12,13 +12,13 @@
 //! let vex_ports = vexv5_serial::devices::get_socket_info_pairs().unwrap();
 //! 
 //! // Get the first device found (panics if there is no device)
-//! let port = vex_ports.get(0).unwrap();
+//! let port = &vex_ports[0];
 //! 
 //! // Open a serial port connection
-//! let ports = vexv5_serial::devices::open_device(vex_ports[0].clone()).unwrap();
+//! let ports = vexv5_serial::devices::open_device(&vex_ports[0]).unwrap();
 //! 
 //! // Create a Device struct that can communicate over the port
-//! let mut device = vexv5_serial::v5::Device::new(vex_ports[0].clone(), ports.0, ports.1);
+//! let mut device = vexv5_serial::v5::Device::new(ports.0, ports.1);
 //! 
 //! // Set the team number on the brain
 //! let _ = device.send_request(vexv5_serial::commands::KVWrite("teamnumber", "ABCD")).unwrap();

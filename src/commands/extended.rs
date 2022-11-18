@@ -3,9 +3,16 @@ use crate::checks::VexExtPacketChecks;
 
 use super::Command;
 
-/// The structure base of all Extended commands
-/// The first u8 is the extended command ID, the second is the 
-/// extended command's payload
+/// Encodes an Extended command
+/// Depended on by all extended commands.
+/// 
+/// # Members
+/// 
+/// * `0` - The extended command id
+/// * `1` - The payload of the extended command
+/// 
+/// # Examples
+/// No examples are provided here. For implementation details, see a basic command such as `KVRead` to see how this can be used.
 pub struct Extended<'a>(pub u8, pub &'a[u8]);
 
 impl<'a> Extended<'a> {
@@ -115,5 +122,10 @@ impl<'a> Command for Extended<'a> {
     
 }
 
-/// The extended command response contains the extended command id, and the response payload
+/// The response returned by an extended command
+/// 
+/// # Members
+/// 
+/// * `0` - The command id of the recieved response
+/// * `1` - The payload of the recieved response
 pub struct ExtendedResponse(pub u8, pub Vec<u8>);

@@ -1,6 +1,24 @@
 use super::Command;
 
 /// Reads in a key-value entry from the brain.
+/// 
+/// # Members
+/// 
+/// * `0` - A string slice that contains the key to read from the brain
+/// 
+/// # Examples
+/// 
+/// ```rust
+/// 
+/// use vexv5_serial::commands::KVRead;
+/// 
+/// // Create a KVRead instance that will generate a command to read the teamnumber key
+/// let kv = KVRead("teamnumber");
+/// 
+/// // The only other really useful key is the robotname key
+/// let kv = KVRead("robotname");
+///
+/// ```
 #[derive(Copy, Clone)]
 pub struct KVRead<'a> (pub &'a str);
 
@@ -40,13 +58,33 @@ impl<'a> Command for KVRead<'a> {
 
 
 /// Writes a key-value entry to the brain
+/// 
+/// # Members
+/// 
+/// * `0` - A string slice that contains the key to write to on the brain
+/// * `1` - A string slice that contains the value to write to the key-value store
+/// 
+/// # Examples
+/// 
+/// ```rust
+/// 
+/// use vexv5_serial::commands::KVWrite;
+/// 
+/// // Create a KVWrite instance that will write to the teamnumber key
+/// let kv = KVWrite("teamnumber", "ABCD");
+/// 
+/// // We can also do the same with the robotname key, which is the
+/// // only other key that is useful to most users
+/// let kv = KVWrite("robotname", "robo");
+///
+/// ```
 #[derive(Copy, Clone)]
 pub struct KVWrite<'a> (pub &'a str, pub &'a str);
 
 impl<'a>Command for KVWrite<'a> {
     type Response = ();
 
-    /// Requests an update of an entry the key-value store on the brain
+
     fn encode_request(self) -> Vec<u8> {
 
         // Convert the value to an array of bytes
@@ -81,8 +119,7 @@ impl<'a>Command for KVWrite<'a> {
         super::Extended(0x2f, &key).encode_request()
     }
 
-    /// This returns nothing (()), and serves only to verify that the request was recieved.
-    /// It will return an error if the request was recieved incorrectly.
+    /// This returns `()`, and if a package is malformed or not recieved it may return an error.
     fn decode_stream<T: std::io::Read>(stream: &mut T, timeout: std::time::Duration) -> Result<Self::Response, crate::errors::DecodeError> {
         
         // Decode as an extended packet

@@ -25,7 +25,7 @@ pub struct VexSerialInfo {
 
 /// This function finds all serial ports that are from VEX devices
 /// returning a vector of VexSerialInfo structs/
-pub fn discover_vex_ports() -> Result<Vec<VexSerialInfo>> {
+pub fn discover_vex_ports() -> Result<Vec<VexSerialInfo>, crate::errors::DeviceError> {
 
     // Get all available serial ports
     let ports = serialport::available_ports()?;

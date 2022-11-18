@@ -1,8 +1,12 @@
 use super::Command;
 
 /// The structure base of all Simple commands
-/// The first u8 is the Simple command ID, the second is the 
-/// simple command's payload
+/// Depended upon by all simple and extended commands (the Extended command itself depends on this command)
+/// 
+/// # Members
+/// 
+/// * `0` - The simple command id of the command to send. 0x56 is Extended command
+/// * `1` - The payload of the simple command being sent
 pub struct Simple<'a>(pub u8, pub &'a[u8]);
 
 impl<'a> Command for Simple<'a> {
@@ -113,6 +117,11 @@ impl<'a> Command for Simple<'a> {
 
 }
 
-/// The Simple command response contains the Simple command id, and the response payload
-/// The first vector is the payload, the second is the entire packet
+/// The response to all simple commands
+/// 
+/// # Members
+/// 
+/// * `0` - The simple command ID
+/// * `1` - The payload of the simple command
+/// * `2` - The entire response, including header, payload, and more. Used by Extended command to verify CRC.
 pub struct SimpleResponse(pub u8, pub Vec<u8>, pub Vec<u8>);

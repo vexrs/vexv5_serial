@@ -5,7 +5,7 @@ fn main() -> anyhow::Result<()>{
 
     let ports = vexv5_serial::devices::open_device(vex_ports[0].clone())?;
 
-    let mut device = vexv5_serial::v5::Device::new(vex_ports[0].clone(), ports.0, ports.1);
+    let mut device = vexv5_serial::v5::Device::new(ports.0, ports.1);
 
     let res = device.send_request(vexv5_serial::commands::KVWrite("teamnumber", "7122A"));
 
