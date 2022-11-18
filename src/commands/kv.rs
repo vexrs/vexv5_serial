@@ -93,8 +93,6 @@ impl<'a>Command for KVWrite<'a> {
             return Err(crate::errors::DecodeError::ExpectedCommand(0x2e, packet.0));
         }
 
-        println!("{:?}", packet.1);
-
         Ok(())
     }
 }

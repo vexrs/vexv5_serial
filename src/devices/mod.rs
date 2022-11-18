@@ -65,7 +65,7 @@ pub fn get_socket_info_pairs() -> Result<Vec<SocketInfoPairs>> {
     Ok(pairs)
 }
 
-pub fn open_device_pair(wraps: SocketInfoPairs) -> Result<(Option<Box<dyn SerialPort>>, Box<dyn SerialPort>), crate::errors::DeviceError> {
+pub fn open_device(wraps: SocketInfoPairs) -> Result<(Option<Box<dyn SerialPort>>, Box<dyn SerialPort>), crate::errors::DeviceError> {
     // Create the user and system ports
     Ok(match wraps {
         SocketInfoPairs::UserSystem(system, user) => {

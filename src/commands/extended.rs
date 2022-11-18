@@ -102,8 +102,6 @@ impl<'a> Command for Extended<'a> {
         packet.push((checksum >> 8) as u8);
         packet.push((checksum & 0xff) as u8);
 
-        println!("{:?}", v5crc.checksum(&packet));
-
         // Return the packet
         packet
     }
