@@ -30,6 +30,8 @@ pub enum DeviceError {
     IoError(#[from] std::io::Error),
     #[error("Serialport Error")]
     SerialportError(#[from] serialport::Error),
+    #[error("The user port can not be currently written to over wireless control")]
+    NoWriteOnWireless,
 }
 
 /// A V5 device can respond with various different acknowledgements.
