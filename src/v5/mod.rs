@@ -1,5 +1,5 @@
 
-use tokio::io::AsyncWriteExt;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 pub mod meta;
 /// The representation of a V5 device
@@ -61,7 +61,7 @@ impl<S: crate::io::Stream, U: crate::io::Stream> Device<S, U> {
     }
 
     /// Reads from the user program serial port over the system port
-    pub async fn read_serial(&mut self, buf: &mut [u8]) -> Result<usize, crate::errors::DecodeError> {
+    async fn read_serial_raw(&mut self, buf: &mut [u8]) -> Result<usize, crate::errors::DecodeError> {
         
         // Optimization: Only read more bytes from the brain if we need them. This allows usages
         // that use small reads to be much faster.
@@ -104,6 +104,36 @@ impl<S: crate::io::Stream, U: crate::io::Stream> Device<S, U> {
 
         // Return the length of the data we read
         Ok(data_len)
+    }
+
+    /// Reads from the user port
+    pub async fn read(&mut self, buf: &mut [u8]) -> futures::io::Result<usize> {
+        if let Some(p) = &mut self.user_port {
+            p.read(buf).await
+        } else {
+            match self.read_serial_raw(buf).await {
+                Ok(v) => Ok(v),
+                Err(e) => Err(std::io::Error::new(std::io::ErrorKind::Other, e))
+            }
+        } 
+    }
+
+    /// Writes to the user port
+    pub async fn write(&mut self, buf: &[u8]) -> futures::io::Result<usize> {
+        if let Some(p) = &mut self.user_port {
+            p.write(buf).await
+        } else {
+            Err(std::io::Error::new(std::io::ErrorKind::Other, crate::errors::DeviceError::NoWriteOnWireless))
+        }
+    }
+
+    /// Flushes the user port
+    pub async fn flush(&mut self) -> futures::io::Result<()> {
+        if let Some(p) = &mut self.user_port {
+            p.flush().await
+        } else {
+            Err(std::io::Error::new(std::io::ErrorKind::Other, crate::errors::DeviceError::NoWriteOnWireless))
+        }
     }
 
 }
