@@ -1,4 +1,4 @@
-use serialport::SerialPortInfo;
+use tokio_serial::SerialPortInfo;
 use anyhow::Result;
 
 const VEX_V5_BRAIN_PID: u16 = 0x0501;
@@ -28,7 +28,7 @@ pub struct VexSerialInfo {
 pub fn discover_vex_ports() -> Result<Vec<VexSerialInfo>, crate::errors::DeviceError> {
 
     // Get all available serial ports
-    let ports = serialport::available_ports()?;
+    let ports = tokio_serial::available_ports()?;
 
     // Create a vector of all vex ports
     let mut vex_ports: Vec<VexSerialInfo> = Vec::new();
@@ -40,7 +40,7 @@ pub fn discover_vex_ports() -> Result<Vec<VexSerialInfo>, crate::errors::DeviceE
         // Other than bluetooth, how would it be possible to have a non-USB
         // serial port. Bluetooth can be handled in a different function
         let port_info = match port.clone().port_type {
-            serialport::SerialPortType::UsbPort(info) => info,
+            tokio_serial::SerialPortType::UsbPort(info) => info,
             _ => continue, // Skip the port if it is not USB.
         };
 

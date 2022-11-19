@@ -3,6 +3,8 @@
 
 
 
+use tokio::io::AsyncReadExt;
+
 use super::Command;
 
 /// The structure base of all Simple commands
@@ -15,6 +17,7 @@ use super::Command;
 #[derive(Copy, Clone)]
 pub struct Simple<'a>(pub u8, pub &'a[u8]);
 
+#[async_trait]
 impl<'a> Command for Simple<'a> {
     type Response = SimpleResponse;
 
@@ -30,7 +33,7 @@ impl<'a> Command for Simple<'a> {
         packet
     }
 
-    fn decode_stream<T: std::io::Read>(stream: &mut T, timeout: std::time::Duration) -> Result<Self::Response, crate::errors::DecodeError> {
+    async fn decode_stream<T: crate::io::Read>(stream: &mut T, timeout: std::time::Duration) -> Result<Self::Response, crate::errors::DecodeError> {
         // We need to wait to recieve the header of a packet.
         // The header should be the bytes [0xAA, 0x55]
 
@@ -59,7 +62,7 @@ impl<'a> Command for Simple<'a> {
 
             // Recieve a single bytes
             let mut b: [u8; 1] = [0];
-            match stream.read_exact(&mut b) { // Do some match magic to convert the error types
+            match stream.read_exact(&mut b).await { // Do some match magic to convert the error types
                 Ok(v) => Ok(v),
                 Err(e) => Err(crate::errors::DecodeError::IoError(e)),
             }?;
@@ -80,7 +83,7 @@ impl<'a> Command for Simple<'a> {
 
         // Read int he next two bytes
         let mut b: [u8; 2] = [0; 2];
-        match stream.read_exact(&mut b) { // Do some match magic to convert the error types
+        match stream.read_exact(&mut b).await { // Do some match magic to convert the error types
             Ok(v) => Ok(v),
             Err(e) => Err(crate::errors::DecodeError::IoError(e)),
         }?;
@@ -94,7 +97,7 @@ impl<'a> Command for Simple<'a> {
         let length = if 0x56 == command && b[1] & 0x80 == 0x80 {
             // Read the lower bytes
             let mut bl: [u8; 1] = [0];
-            match stream.read_exact(&mut bl) { // Do some match magic to convert the error types
+            match stream.read_exact(&mut bl).await { // Do some match magic to convert the error types
                 Ok(v) => Ok(v),
                 Err(e) => Err(crate::errors::DecodeError::IoError(e)),
             }?;
@@ -109,7 +112,7 @@ impl<'a> Command for Simple<'a> {
         let mut payload: Vec<u8> = vec![0; length as usize];
         // DO NOT CHANGE THIS TO READ. read_exact is required to suppress
         // CRC errors and missing data.
-        match stream.read_exact(&mut payload) { // Do some match magic to convert the error types
+        match stream.read_exact(&mut payload).await { // Do some match magic to convert the error types
             Ok(v) => Ok(v),
             Err(e) => Err(crate::errors::DecodeError::IoError(e)),
         }?;

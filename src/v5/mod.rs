@@ -1,15 +1,16 @@
-use std::io::{Read, Write};
+
+use tokio::io::AsyncWriteExt;
 
 pub mod meta;
 /// The representation of a V5 device
-pub struct Device<S: Read + Write, U: Read+Write> {
+pub struct Device<S: crate::io::Stream, U: crate::io::Stream> {
     system_port: S,
     user_port: Option<U>,
     read_buffer: Vec<u8>,
     user_read_size: u8,
 }
 
-impl<S: Read + Write, U: Read+Write> Device<S, U> {
+impl<S: crate::io::Stream, U: crate::io::Stream> Device<S, U> {
     pub fn new(system: S, user: Option<U>) -> Self {
         
         Device {
@@ -26,27 +27,27 @@ impl<S: Read + Write, U: Read+Write> Device<S, U> {
     }
 
     /// Sends a command and recieves its response
-    pub fn send_request<C: crate::commands::Command + Copy>(&mut self, command: C) -> Result<C::Response, crate::errors::DecodeError> {
+    pub async fn send_request<C: crate::commands::Command + Copy>(&mut self, command: C) -> Result<C::Response, crate::errors::DecodeError> {
         // Send the command over the system port
-        self.send_command(command)?;
+        self.send_command(command).await?;
 
         // Wait for the response
-        self.response_for::<C>()
+        self.response_for::<C>().await
     }
 
     /// Sends a command
-    pub fn send_command<C: crate::commands::Command + Copy>(&mut self, command: C) -> Result<(), crate::errors::DecodeError> {
+    pub async fn send_command<C: crate::commands::Command + Copy>(&mut self, command: C) -> Result<(), crate::errors::DecodeError> {
 
         // Encode the command
         let encoded = command.encode_request();
         
         // Write the command to the serial port
-        match self.system_port.write_all(&encoded) {
+        match self.system_port.write_all(&encoded).await {
             Ok(_) => (),
             Err(e) => return Err(crate::errors::DecodeError::IoError(e))
         };
 
-        match self.system_port.flush() {
+        match self.system_port.flush().await {
             Ok(_) => (),
             Err(e) => return Err(crate::errors::DecodeError::IoError(e))
         };
@@ -55,12 +56,12 @@ impl<S: Read + Write, U: Read+Write> Device<S, U> {
     }
 
     /// Recieves a response for a command
-    pub fn response_for<C: crate::commands::Command + Copy>(&mut self) -> Result<C::Response, crate::errors::DecodeError> {
-        C::decode_stream(&mut self.system_port, std::time::Duration::from_secs(10))
+    pub async fn response_for<C: crate::commands::Command + Copy>(&mut self) -> Result<C::Response, crate::errors::DecodeError> {
+        C::decode_stream(&mut self.system_port, std::time::Duration::from_secs(10)).await
     }
 
     /// Reads from the user program serial port over the system port
-    pub fn read_serial(&mut self, buf: &mut [u8]) -> Result<usize, crate::errors::DecodeError> {
+    pub async fn read_serial(&mut self, buf: &mut [u8]) -> Result<usize, crate::errors::DecodeError> {
         
         // Optimization: Only read more bytes from the brain if we need them. This allows usages
         // that use small reads to be much faster.
@@ -72,7 +73,7 @@ impl<S: Read + Write, U: Read+Write> Device<S, U> {
             let payload = vec![meta::V5ControllerChannel::UPLOAD as u8, u8::min(0x40, self.user_read_size)];
 
             // Send the extended command 0x27
-            let res = self.send_request(crate::commands::Extended(0x27, &payload))?;
+            let res = self.send_request(crate::commands::Extended(0x27, &payload)).await?;
 
             // Ensure that the response is for the correct command
             if res.0 != 0x27 {
@@ -105,41 +106,4 @@ impl<S: Read + Write, U: Read+Write> Device<S, U> {
         Ok(data_len)
     }
 
-}
-
-impl<S, U> std::io::Read for Device<S, U>
-where S: Read + Write, U: Read + Write {
-    
-    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-
-        // If the user port is available, then just read from it
-        if let Some(p) = &mut self.user_port {
-            p.read(buf)
-        } else {
-            // If not, then delegate to the read_serial
-            match self.read_serial(buf) {
-                Ok(v) => Ok(v),
-                Err(e) => Err(std::io::Error::new(std::io::ErrorKind::Other, e))
-            }
-        }
-    }
-}
-
-impl<S, U> std::io::Write for Device<S, U>
-where S: Read + Write, U: Read + Write {
-    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        if let Some(p) = &mut self.user_port {
-            p.write(buf)
-        } else {
-            Err(std::io::Error::new(std::io::ErrorKind::Other, crate::errors::DeviceError::NoWriteOnWireless))
-        }
-    }
-
-    fn flush(&mut self) -> std::io::Result<()> {
-        if let Some(p) = &mut self.user_port {
-            p.flush()
-        } else {
-            Err(std::io::Error::new(std::io::ErrorKind::Other, crate::errors::DeviceError::NoWriteOnWireless))
-        }
-    }
 }

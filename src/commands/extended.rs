@@ -21,9 +21,9 @@ pub struct Extended<'a>(pub u8, pub &'a[u8]);
 
 impl<'a> Extended<'a> {
     /// Decodes an extended payload from a stream
-    fn decode_extended<T: std::io::Read>(stream: &mut T, timeout: std::time::Duration, checks: VexExtPacketChecks) -> Result<ExtendedResponse, crate::errors::DecodeError> {
+    async fn decode_extended<T: crate::io::Read>(stream: &mut T, timeout: std::time::Duration, checks: VexExtPacketChecks) -> Result<ExtendedResponse, crate::errors::DecodeError> {
         // Decode the simple packet
-        let packet = super::Simple::decode_stream(stream, timeout)?;
+        let packet = super::Simple::decode_stream(stream, timeout).await?;
 
         // Ensure that it is an extended packet
         if packet.0 != 0x56 {
@@ -72,6 +72,7 @@ impl<'a> Extended<'a> {
     }
 }
 
+#[async_trait]
 impl<'a> Command for Extended<'a> {
     type Response = ExtendedResponse;
 
@@ -117,9 +118,9 @@ impl<'a> Command for Extended<'a> {
         packet
     }
 
-    fn decode_stream<T: std::io::Read>(stream: &mut T, timeout: std::time::Duration) -> Result<Self::Response, crate::errors::DecodeError> {
+    async fn decode_stream<T: crate::io::Read>(stream: &mut T, timeout: std::time::Duration) -> Result<Self::Response, crate::errors::DecodeError> {
         // Pass along to decode_extended, assuming that by default we run all checks
-        Extended::decode_extended(stream, timeout, VexExtPacketChecks::ALL)
+        Extended::decode_extended(stream, timeout, VexExtPacketChecks::ALL).await
     }
 
     

@@ -24,6 +24,7 @@ use super::Command;
 #[derive(Copy, Clone)]
 pub struct KVRead<'a> (pub &'a str);
 
+#[async_trait]
 impl<'a> Command for KVRead<'a> {
     type Response = String;
 
@@ -39,10 +40,10 @@ impl<'a> Command for KVRead<'a> {
     }
 
     /// Returns the String value of the key requested.
-    fn decode_stream<T: std::io::Read>(stream: &mut T, timeout: std::time::Duration) -> Result<Self::Response, crate::errors::DecodeError> {
+    async fn decode_stream<T: crate::io::Read>(stream: &mut T, timeout: std::time::Duration) -> Result<Self::Response, crate::errors::DecodeError> {
 
         // Read in the extended packet
-        let packet = super::Extended::decode_stream(stream, timeout)?;
+        let packet = super::Extended::decode_stream(stream, timeout).await?;
 
         // If the command id is wrong, then error
         if packet.0 != 0x2e {
@@ -83,6 +84,7 @@ impl<'a> Command for KVRead<'a> {
 #[derive(Copy, Clone)]
 pub struct KVWrite<'a> (pub &'a str, pub &'a str);
 
+#[async_trait]
 impl<'a>Command for KVWrite<'a> {
     type Response = ();
 
@@ -122,10 +124,10 @@ impl<'a>Command for KVWrite<'a> {
     }
 
     /// This returns `()`, and if a package is malformed or not recieved it may return an error.
-    fn decode_stream<T: std::io::Read>(stream: &mut T, timeout: std::time::Duration) -> Result<Self::Response, crate::errors::DecodeError> {
+    async fn decode_stream<T: crate::io::Read>(stream: &mut T, timeout: std::time::Duration) -> Result<Self::Response, crate::errors::DecodeError> {
         
         // Decode as an extended packet
-        let packet = super::Extended::decode_stream(stream, timeout)?;
+        let packet = super::Extended::decode_stream(stream, timeout).await?;
 
         // If the command id is wrong, then error
         if packet.0 != 0x2f {
