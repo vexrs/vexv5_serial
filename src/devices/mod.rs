@@ -53,13 +53,7 @@ pub fn get_socket_info_pairs() -> Result<Vec<SocketInfoPairs>, crate::errors::De
 
     // Manually iterate over the vex ports
     let mut port_iter = vex_ports.iter().peekable();
-    loop {
-        // Get the next port in the iteration
-        let current_port = match port_iter.next() {
-            Some(p) => p,
-            None => break,
-        };
-
+    while let Some(current_port) = port_iter.next() {
 
         if current_port.port_type == ports::VexSerialType::System {
             // Peek the next port, and if it is a User port, add the next pair

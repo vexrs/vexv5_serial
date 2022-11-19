@@ -42,7 +42,7 @@ impl<'a> Extended<'a> {
         }
 
         // Get the command id
-        let command_id = match packet.1.get(0) {
+        let command_id = match packet.1.first() {
             Some(v) => *v,
             None => return Err(crate::errors::DecodeError::PacketLengthError)
         };
