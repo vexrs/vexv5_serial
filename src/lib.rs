@@ -40,7 +40,11 @@
 
 
 #![feature(arbitrary_enum_discriminant)]
+#![feature(trait_alias)]
 
+
+#[macro_use]
+extern crate async_trait;
 
 
 pub mod commands;
@@ -49,8 +53,11 @@ pub mod errors;
 pub mod devices;
 pub mod checks;
 
+pub mod io;
+
 
 use crc::Algorithm;
+
 
 /// Vex uses CRC16/XMODEM as the CRC16.
 pub const VEX_CRC16: Algorithm<u16> = crc::CRC_16_XMODEM;

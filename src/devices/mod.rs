@@ -1,6 +1,6 @@
 
 use anyhow::Result;
-use serialport::SerialPort;
+use tokio_serial::{SerialPortBuilderExt, SerialStream};
 
 use self::ports::VexSerialInfo;
 
@@ -97,22 +97,22 @@ pub fn get_socket_info_pairs() -> Result<Vec<SocketInfoPairs>, crate::errors::De
 /// 
 /// * `0` - The opened system port of either a controller or a brain
 /// * `1` - An optional user port that connects to the brain
-pub fn open_device(wraps: &SocketInfoPairs) -> Result<(Box<dyn SerialPort>, Option<Box<dyn SerialPort>>), crate::errors::DeviceError> {
+pub fn open_device(wraps: &SocketInfoPairs) -> Result<(SerialStream, Option<SerialStream>), crate::errors::DeviceError> {
     // Create the user and system ports
     Ok(match wraps {
         SocketInfoPairs::UserSystem(system, user) => {
             (
-                match serialport::new(&system.port_info.port_name, 115200)
-                .parity(serialport::Parity::None)
+                match tokio_serial::new(&system.port_info.port_name, 115200)
+                .parity(tokio_serial::Parity::None)
                 .timeout(std::time::Duration::new(crate::devices::SERIAL_TIMEOUT_SECONDS, crate::devices::SERIAL_TIMEOUT_NS))
-                .stop_bits(serialport::StopBits::One).open() {
+                .stop_bits(tokio_serial::StopBits::One).open_native_async() {
                     Ok(v) => Ok(v),
                     Err(e) => Err(crate::errors::DeviceError::SerialportError(e)),
                 }?,
-                Some(match serialport::new(&user.port_info.port_name, 115200)
-                .parity(serialport::Parity::None)
+                Some(match tokio_serial::new(&user.port_info.port_name, 115200)
+                .parity(tokio_serial::Parity::None)
                 .timeout(std::time::Duration::new(crate::devices::SERIAL_TIMEOUT_SECONDS, crate::devices::SERIAL_TIMEOUT_NS))
-                .stop_bits(serialport::StopBits::One).open() {
+                .stop_bits(tokio_serial::StopBits::One).open_native_async() {
                     Ok(v) => Ok(v),
                     Err(e) => Err(crate::errors::DeviceError::SerialportError(e)),
                 }?)
@@ -120,10 +120,10 @@ pub fn open_device(wraps: &SocketInfoPairs) -> Result<(Box<dyn SerialPort>, Opti
         },
         SocketInfoPairs::Controller(system) => {
             (
-                match serialport::new(&system.port_info.port_name, 115200)
-                .parity(serialport::Parity::None)
+                match tokio_serial::new(&system.port_info.port_name, 115200)
+                .parity(tokio_serial::Parity::None)
                 .timeout(std::time::Duration::new(crate::devices::SERIAL_TIMEOUT_SECONDS, crate::devices::SERIAL_TIMEOUT_NS))
-                .stop_bits(serialport::StopBits::One).open() {
+                .stop_bits(tokio_serial::StopBits::One).open_native_async() {
                     Ok(v) => Ok(v),
                     Err(e) => Err(crate::errors::DeviceError::SerialportError(e)),
                 }?,
@@ -132,10 +132,10 @@ pub fn open_device(wraps: &SocketInfoPairs) -> Result<(Box<dyn SerialPort>, Opti
         },
         SocketInfoPairs::SystemOnly(system) => {
             (
-                match serialport::new(&system.port_info.port_name, 115200)
-                .parity(serialport::Parity::None)
+                match tokio_serial::new(&system.port_info.port_name, 115200)
+                .parity(tokio_serial::Parity::None)
                 .timeout(std::time::Duration::new(crate::devices::SERIAL_TIMEOUT_SECONDS, crate::devices::SERIAL_TIMEOUT_NS))
-                .stop_bits(serialport::StopBits::One).open() {
+                .stop_bits(tokio_serial::StopBits::One).open_native_async() {
                     Ok(v) => Ok(v),
                     Err(e) => Err(crate::errors::DeviceError::SerialportError(e)),
                 }?,
