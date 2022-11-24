@@ -29,16 +29,16 @@ impl<S: Read + Write, U: Read+Write> Device<S, U> {
     pub fn send_request<C: crate::commands::Command + Copy>(&mut self, command: C) -> Result<C::Response, crate::errors::DecodeError> {
         // Send the command over the system port
         self.send_command(command)?;
-
+        
         // Wait for the response
-        self.response_for::<C>()
+        self.response_for::<C>(std::time::Duration::new(crate::devices::SERIAL_TIMEOUT_SECONDS, crate::devices::SERIAL_TIMEOUT_NS))
     }
 
     /// Sends a command
     pub fn send_command<C: crate::commands::Command + Copy>(&mut self, command: C) -> Result<(), crate::errors::DecodeError> {
 
         // Encode the command
-        let encoded = command.encode_request();
+        let encoded = command.encode_request()?;
         
         // Write the command to the serial port
         match self.system_port.write_all(&encoded) {
@@ -55,8 +55,93 @@ impl<S: Read + Write, U: Read+Write> Device<S, U> {
     }
 
     /// Recieves a response for a command
-    pub fn response_for<C: crate::commands::Command + Copy>(&mut self) -> Result<C::Response, crate::errors::DecodeError> {
-        C::decode_stream(&mut self.system_port, std::time::Duration::from_secs(10))
+    pub fn response_for<C: crate::commands::Command + Copy>(&mut self, timeout: std::time::Duration) -> Result<C::Response, crate::errors::DecodeError> {
+        // We need to wait to recieve the header of a packet.
+        // The header should be the bytes [0xAA, 0x55]
+
+        // This header needs to be recieved within the timeout.
+        // If it is not recieved within the timeout, then we need to return an error.
+        // Begin the countdown now:
+        let countdown = std::time::SystemTime::now() + timeout;
+
+        // Create a buffer for the header bytes
+        // This is configurable just in case vex changes the header bytes on us.
+        let expected_header: [u8; 2] = [0xAA, 0x55];
+        let mut header_index = 0; // This represents what index in the header we will be checking next.
+
+        // The way this works is we recieve a byte from the device.
+        // If it matches the current byte (expected_header[header_index]), then we increment the header_index.
+        // If the header_index is equal to the length of the header, then we know we have recieved the header.
+        // If the header_index is not equal to the length of the header, then we need to keep recieving bytes until we have recieved the header.
+        // If an unexpected byte is recieved, reset header_index to zero.
+        while header_index < expected_header.len() {
+            // If the timeout has elapsed, then we need to return an error.
+            // We need to do this first just in case we actually do recieve the header
+            // before the timeout has elapsed.
+            if countdown < std::time::SystemTime::now() {
+                return Err(crate::errors::DecodeError::HeaderTimeout);
+            }
+
+            // Recieve a single bytes
+            let mut b: [u8; 1] = [0];
+            match self.system_port.read_exact(&mut b) { // Do some match magic to convert the error types
+                Ok(v) => Ok(v),
+                Err(e) => Err(crate::errors::DecodeError::IoError(e)),
+            }?;
+            let b = b[0];
+            
+
+            if b == expected_header[header_index] {
+                header_index += 1;
+            } else {
+                header_index = 0;
+            }
+        }
+
+        
+        // Now that we know we have recieved the header, we need to recieve the rest of the packet.
+
+        // First create a vector containing the entirety of the recieved packet
+        let mut packet: Vec<u8> = Vec::from(expected_header);
+
+        // Read int he next two bytes
+        let mut b: [u8; 2] = [0; 2];
+        match self.system_port.read_exact(&mut b) { // Do some match magic to convert the error types
+            Ok(v) => Ok(v),
+            Err(e) => Err(crate::errors::DecodeError::IoError(e)),
+        }?;
+        packet.extend_from_slice(&b);
+
+        // Get the command byte and the length byte of the packet
+        let command = b[0];
+        
+        // We may need to modify the length of the packet if it is an extended command
+        // Extended commands use a u16 instead of a u8 for the length.
+        let length = if 0x56 == command && b[1] & 0x80 == 0x80 {
+            // Read the lower bytes
+            let mut bl: [u8; 1] = [0];
+            match self.system_port.read_exact(&mut bl) { // Do some match magic to convert the error types
+                Ok(v) => Ok(v),
+                Err(e) => Err(crate::errors::DecodeError::IoError(e)),
+            }?;
+            packet.push(bl[0]);
+
+            (((b[1] & 0x7f) as u16) << 8) | (bl[0] as u16)
+        } else {
+            b[1] as u16
+        };
+
+        // Read the rest of the payload
+        let mut payload: Vec<u8> = vec![0; length as usize];
+        // DO NOT CHANGE THIS TO READ. read_exact is required to suppress
+        // CRC errors and missing data.
+        match self.system_port.read_exact(&mut payload) { // Do some match magic to convert the error types
+            Ok(v) => Ok(v),
+            Err(e) => Err(crate::errors::DecodeError::IoError(e)),
+        }?;
+        packet.extend(&payload);
+        
+        C::decode_response(command, payload)
     }
 
     /// Reads from the user program serial port over the system port

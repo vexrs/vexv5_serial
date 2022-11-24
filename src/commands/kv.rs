@@ -29,7 +29,7 @@ impl<'a> Command for KVRead<'a> {
 
     /// Encodes a request for the value of a key-value store.
     /// The &str in the struct body is used as the key
-    fn encode_request(self) -> Vec<u8> {
+    fn encode_request(self) -> Result<Vec<u8>, crate::errors::DecodeError> {
         // The payload is just the key, but zero terminated
         let mut payload = self.0.as_bytes().to_vec();
         payload.push(0);
@@ -39,10 +39,10 @@ impl<'a> Command for KVRead<'a> {
     }
 
     /// Returns the String value of the key requested.
-    fn decode_stream<T: std::io::Read>(stream: &mut T, timeout: std::time::Duration) -> Result<Self::Response, crate::errors::DecodeError> {
+    fn decode_response(command_id: u8, data: Vec<u8>) -> Result<Self::Response, crate::errors::DecodeError> {
 
         // Read in the extended packet
-        let packet = super::Extended::decode_stream(stream, timeout)?;
+        let packet = super::Extended::decode_response(command_id, data)?;
 
         // If the command id is wrong, then error
         if packet.0 != 0x2e {
@@ -87,7 +87,7 @@ impl<'a>Command for KVWrite<'a> {
     type Response = ();
 
 
-    fn encode_request(self) -> Vec<u8> {
+    fn encode_request(self) -> Result<Vec<u8>, crate::errors::DecodeError> {
 
         // Convert the value to an array of bytes
         let value = self.1.as_bytes();
@@ -122,10 +122,10 @@ impl<'a>Command for KVWrite<'a> {
     }
 
     /// This returns `()`, and if a package is malformed or not recieved it may return an error.
-    fn decode_stream<T: std::io::Read>(stream: &mut T, timeout: std::time::Duration) -> Result<Self::Response, crate::errors::DecodeError> {
-        
+    fn decode_response(command_id: u8, data: Vec<u8>) -> Result<Self::Response, crate::errors::DecodeError> {
+
         // Decode as an extended packet
-        let packet = super::Extended::decode_stream(stream, timeout)?;
+        let packet = super::Extended::decode_response(command_id, data)?;
 
         // If the command id is wrong, then error
         if packet.0 != 0x2f {

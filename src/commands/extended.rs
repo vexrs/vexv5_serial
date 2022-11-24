@@ -21,24 +21,14 @@ pub struct Extended<'a>(pub u8, pub &'a[u8]);
 
 impl<'a> Extended<'a> {
     /// Decodes an extended payload from a stream
-    fn decode_extended<T: std::io::Read>(stream: &mut T, timeout: std::time::Duration, checks: VexExtPacketChecks) -> Result<ExtendedResponse, crate::errors::DecodeError> {
+    fn decode_extended(command_id: u8, data: Vec<u8>, checks: VexExtPacketChecks) -> Result<ExtendedResponse, crate::errors::DecodeError> {
+
         // Decode the simple packet
-        let packet = super::Simple::decode_stream(stream, timeout)?;
+        let packet = (command_id, data);
 
         // Ensure that it is an extended packet
         if packet.0 != 0x56 {
             return Err(crate::errors::DecodeError::ExpectedExtended);
-        }
-
-        // Check the CRC if we are supposed to
-        if checks.contains(VexExtPacketChecks::CRC) {
-            // Create the CRC_16_XMODEM CRC that vex uses
-            let v5crc = crc::Crc::<u16>::new(&crate::VEX_CRC16);
-
-            // If the checksum on the packet fails, then return an error
-            if v5crc.checksum(&packet.2) != 0{
-                return Err(crate::errors::DecodeError::CrcError)
-            }
         }
 
         // Get the command id
@@ -75,7 +65,7 @@ impl<'a> Extended<'a> {
 impl<'a> Command for Extended<'a> {
     type Response = ExtendedResponse;
 
-    fn encode_request(self) -> Vec<u8> {
+    fn encode_request(self) -> Result<Vec<u8>, crate::errors::DecodeError> {
         
         // Create the empty extended packet, with the extended command ID
         let mut packet = vec![self.0];
@@ -97,7 +87,9 @@ impl<'a> Command for Extended<'a> {
         packet.extend(self.1);
 
         // Create the simple packet containing the extended packet
-        let mut packet =super::Simple(0x56, &packet).encode_request();
+        let mut new_packet = vec![0xc9, 0x36, 0xb8, 0x47, 0x56];
+        new_packet.extend(packet);
+
 
         // Now we need to add the CRC.
         // The CRC that the v5 uses is the common CRC_16_XMODEM.
@@ -105,21 +97,21 @@ impl<'a> Command for Extended<'a> {
         let v5crc = crc::Crc::<u16>::new(&crate::VEX_CRC16);
 
         // Calculate the crc checksum
-        let checksum = v5crc.checksum(&packet);
+        let checksum = v5crc.checksum(&new_packet);
 
         // And append it to the packet
 
         // First the upper byte, then the lower byte (big endian)
-        packet.push((checksum >> 8) as u8);
-        packet.push((checksum & 0xff) as u8);
+        new_packet.push((checksum >> 8) as u8);
+        new_packet.push((checksum & 0xff) as u8);
 
         // Return the packet
-        packet
+        Ok(new_packet)
     }
 
-    fn decode_stream<T: std::io::Read>(stream: &mut T, timeout: std::time::Duration) -> Result<Self::Response, crate::errors::DecodeError> {
+    fn decode_response(command_id: u8, data: Vec<u8>) -> Result<Self::Response, crate::errors::DecodeError> {
         // Pass along to decode_extended, assuming that by default we run all checks
-        Extended::decode_extended(stream, timeout, VexExtPacketChecks::ALL)
+        Extended::decode_extended(command_id, data, VexExtPacketChecks::ALL)
     }
 
     
