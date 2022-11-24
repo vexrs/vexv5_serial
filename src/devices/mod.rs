@@ -12,6 +12,8 @@ pub const SERIAL_TIMEOUT_SECONDS: u64 = 30;
 /// The default timeout for a serial connection in nanoseconds
 pub const SERIAL_TIMEOUT_NS: u32 = 0;
 
+type SerialDevice = Box<dyn SerialPort>;
+
 
 /// Represents the serial ports available for use when connecting to a specific V5 device.
 #[derive(Debug, Clone)]
@@ -53,12 +55,7 @@ pub fn get_socket_info_pairs() -> Result<Vec<SocketInfoPairs>, crate::errors::De
 
     // Manually iterate over the vex ports
     let mut port_iter = vex_ports.iter().peekable();
-    loop {
-        // Get the next port in the iteration
-        let current_port = match port_iter.next() {
-            Some(p) => p,
-            None => break,
-        };
+    while let Some(current_port) = port_iter.next() {
 
 
         if current_port.port_type == ports::VexSerialType::System {
@@ -97,7 +94,7 @@ pub fn get_socket_info_pairs() -> Result<Vec<SocketInfoPairs>, crate::errors::De
 /// 
 /// * `0` - The opened system port of either a controller or a brain
 /// * `1` - An optional user port that connects to the brain
-pub fn open_device(wraps: &SocketInfoPairs) -> Result<(Box<dyn SerialPort>, Option<Box<dyn SerialPort>>), crate::errors::DeviceError> {
+pub fn open_device(wraps: &SocketInfoPairs) -> Result<(SerialDevice, Option<SerialDevice>), crate::errors::DeviceError> {
     // Create the user and system ports
     Ok(match wraps {
         SocketInfoPairs::UserSystem(system, user) => {
