@@ -39,9 +39,20 @@ impl<S: Read + Write, U: Read+Write> Device<S, U> {
 
         // Encode the command
         let encoded = command.encode_request()?;
+
+        // Create the packet
+        let packet = if encoded.0 == 0x56 {
+            // If it is an extended packet, just pass the data along
+            encoded.1
+        } else {
+            // If not, then create the simple packet
+            let mut data = vec![0xc9, 0x36, 0xb8, 0x47, encoded.0];
+            data.extend(encoded.1);
+            data
+        };
         
         // Write the command to the serial port
-        match self.system_port.write_all(&encoded) {
+        match self.system_port.write_all(&packet) {
             Ok(_) => (),
             Err(e) => return Err(crate::errors::DecodeError::IoError(e))
         };

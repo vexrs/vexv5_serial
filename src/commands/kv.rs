@@ -29,7 +29,7 @@ impl<'a> Command for KVRead<'a> {
 
     /// Encodes a request for the value of a key-value store.
     /// The &str in the struct body is used as the key
-    fn encode_request(self) -> Result<Vec<u8>, crate::errors::DecodeError> {
+    fn encode_request(self) -> Result<(u8, Vec<u8>), crate::errors::DecodeError> {
         // The payload is just the key, but zero terminated
         let mut payload = self.0.as_bytes().to_vec();
         payload.push(0);
@@ -87,7 +87,7 @@ impl<'a>Command for KVWrite<'a> {
     type Response = ();
 
 
-    fn encode_request(self) -> Result<Vec<u8>, crate::errors::DecodeError> {
+    fn encode_request(self) -> Result<(u8, Vec<u8>), crate::errors::DecodeError> {
 
         // Convert the value to an array of bytes
         let value = self.1.as_bytes();

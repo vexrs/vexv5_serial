@@ -6,7 +6,15 @@ fn main() -> anyhow::Result<()>{
 
     let mut device = vexv5_serial::v5::Device::new(ports.0, ports.1);
 
-    device.send_request(vexv5_serial::commands::KVWrite("teamnumber", "123"))?;
 
+
+    //device.send_request(vexv5_serial::commands::KVWrite("teamnumber", "123"))?;
+    println!("updated teamnumber");
+
+
+    let v = device.send_request(vexv5_serial::commands::GetSystemVersion())?;
+
+    println!("{:?}", v);
+    
     Ok(())
 }

@@ -65,7 +65,7 @@ impl<'a> Extended<'a> {
 impl<'a> Command for Extended<'a> {
     type Response = ExtendedResponse;
 
-    fn encode_request(self) -> Result<Vec<u8>, crate::errors::DecodeError> {
+    fn encode_request(self) -> Result<(u8, Vec<u8>), crate::errors::DecodeError> {
         
         // Create the empty extended packet, with the extended command ID
         let mut packet = vec![self.0];
@@ -106,7 +106,7 @@ impl<'a> Command for Extended<'a> {
         new_packet.push((checksum & 0xff) as u8);
 
         // Return the packet
-        Ok(new_packet)
+        Ok((0x56, new_packet))
     }
 
     fn decode_response(command_id: u8, data: Vec<u8>) -> Result<Self::Response, crate::errors::DecodeError> {

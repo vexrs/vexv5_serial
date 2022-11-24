@@ -22,6 +22,8 @@ pub enum DecodeError {
     NACK(VexACKType),
     #[error("expected command _ recieved command _")]
     ExpectedCommand(u8, u8),
+    #[error("device error")]
+    DeviceError(#[from] DeviceError),
 }
 
 #[derive(Error, Debug)]
@@ -32,6 +34,8 @@ pub enum DeviceError {
     SerialportError(#[from] serialport::Error),
     #[error("The user port can not be currently written to over wireless control")]
     NoWriteOnWireless,
+    #[error("The device is not a supported vex device")]
+    InvalidDevice, 
 }
 
 /// A V5 device can respond with various different acknowledgements.
