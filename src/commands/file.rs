@@ -187,3 +187,59 @@ impl Command for FileTransferSetLink {
         Ok(())
     }
 }
+
+
+
+/// Read data from a file transfer
+/// 
+/// # Members
+/// 
+/// * `0` - The address to read data from
+/// * `1` - The number of bytes to read, will be padded to 4 bytes
+struct FileTransferRead(u32, u16);
+
+impl Command for FileTransferRead {
+    type Response = Vec<u8>;
+
+    fn encode_request(self) -> Result<(u8, Vec<u8>), crate::errors::DecodeError> {
+        
+        // Pad nbytes to a 4 byte barrier
+        let nbytes = if self.1 % 4 == 0 {
+            self.1
+        } else {
+            self.1 + 4 - (self.1 % 4)
+        };
+
+        // Create the payload
+        let mut payload = Vec::<u8>::new();
+
+        // Add the address
+        payload.extend(self.0.to_le_bytes());
+
+        // Add the data length
+        payload.extend(nbytes.to_le_bytes());
+
+        // Return the encoded extended packet with id 0x14
+        super::Extended(0x14, &payload).encode_request()
+    }
+
+    fn decode_response(command_id: u8, data: Vec<u8>) -> Result<Self::Response, crate::errors::DecodeError> {
+        
+        // Read the extended command
+        let payload = super::Extended::decode_response(command_id, data)?;
+
+        // Ensure that it is a response to 0x14
+        if payload.0 != 0x14 {
+            return Err(crate::errors::DecodeError::ExpectedCommand(0x14, payload.0));
+        }
+
+        // Read in the number of bytes we read
+        let nbytes =  u32::from_le_bytes(payload.1.get(0..3).ok_or(crate::errors::DecodeError::PacketLengthError)?.try_into().unwrap());
+
+        // Read in the data
+        let data = payload.1.get(4..4+(nbytes as usize)).ok_or(crate::errors::DecodeError::PacketLengthError)?;
+
+        // Return the data as a vec
+        Ok(data.to_vec())
+    }
+}
