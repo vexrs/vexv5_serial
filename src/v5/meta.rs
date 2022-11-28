@@ -59,3 +59,80 @@ bitflags!{
         const CONNECTED_WIRELESS = 0x02;
     }
 }
+
+
+// # File Transfer structures
+// These structures are used during file transfers between the brain and the host
+
+
+
+/// The function to be performed during the file transfer
+///
+/// # Variants
+/// 
+/// * `Upload` - use when writing to a file on the brain
+/// * `Download` - use when reading from a file on the brain
+#[repr(u8)]
+
+pub enum FileTransferFunction {
+    Upload = 0x01,
+    Download = 0x02,
+}
+
+/// The target storage device of a file transfer
+/// 
+/// # Variants
+/// 
+/// * `Flash` - The flash memory on the robot brain where most program files are stored
+/// * `Screen` - The memory accessed when taking a screen capture from the brain.
+#[repr(u8)]
+#[derive(Copy, Clone)]
+pub enum FileTransferTarget {
+    Flash = 0x01,
+    Screen = 0x02,
+}
+
+/// The VID of a file transfer
+#[repr(u8)]
+#[derive(Copy, Clone)]
+pub enum FileTransferVID {
+    User = 1,
+    System = 15,
+    RMS = 16,
+    PROS = 24,
+    MW = 32,
+}
+
+
+bitflags! {
+    /// Options in a file transfer
+    pub struct FileTransferOptions: u8 {
+        const NONE = 0x0;
+        /// Set to overwite the file
+        const OVERWRITE = 0b1;
+    }
+}
+
+
+/// The File type of a file
+/// 
+/// * `Bin` - Binary files, generally programs
+/// * `Ini` - Ini files for program metadata and configuration
+/// * `Other` - Any other file type, including custom user types
+#[repr(u8)]
+#[derive(Copy, Clone)]
+pub enum FileTransferType {
+    Bin,
+    Ini,
+    Other([u8; 3])
+}
+
+impl FileTransferType {
+    pub fn to_bytes(self) -> [u8; 4] {
+        match self {
+            Self::Bin => b"bin\0",
+            Self::Ini => b"ini\0",
+            Self::Other(t) => t + b"\0",
+        }
+    }
+}

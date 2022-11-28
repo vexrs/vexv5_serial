@@ -9,6 +9,8 @@ pub use extended::{Extended, ExtendedResponse};
 mod system;
 pub use system::{GetSystemVersion, V5SystemVersion};
 
+mod file;
+
 /// A command trait that every command implements
 pub trait Command {
     type Response;
