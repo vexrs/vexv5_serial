@@ -73,6 +73,7 @@ bitflags!{
 /// * `Upload` - use when writing to a file on the brain
 /// * `Download` - use when reading from a file on the brain
 #[repr(u8)]
+#[derive(Copy, Clone)]
 
 pub enum FileTransferFunction {
     Upload = 0x01,
@@ -111,6 +112,8 @@ bitflags! {
         /// Set to overwite the file
         const OVERWRITE = 0b1;
     }
+
+    
 }
 
 
@@ -130,9 +133,18 @@ pub enum FileTransferType {
 impl FileTransferType {
     pub fn to_bytes(self) -> [u8; 4] {
         match self {
-            Self::Bin => b"bin\0",
-            Self::Ini => b"ini\0",
-            Self::Other(t) => t + b"\0",
+            Self::Bin => *b"bin\0",
+            Self::Ini => *b"ini\0",
+            Self::Other(t) => [t[0], t[1], t[2], 0u8],
         }
     }
+}
+
+/// The action to run when the transfer is complete
+#[repr(u8)]
+#[derive(Copy, Clone)]
+pub enum FileTransferComplete {
+    DoNothing = 0,
+    RunProgram = 1,
+    ShowRunScreen = 2,
 }

@@ -3,7 +3,7 @@ use crate::v5::meta::{
     FileTransferTarget,
     FileTransferVID,
     FileTransferOptions,
-    FileTransferType
+    FileTransferType, FileTransferComplete
 };
 
 use super::Command;
@@ -35,10 +35,10 @@ impl Command for FileTransferInit {
 
         // Load the function, target, vid, and options
         payload.extend([
-            self.function.into(),
-            self.target.into(),
-            self.vid.into(),
-            self.options.into()
+            self.function as u8,
+            self.target as u8,
+            self.vid as u8,
+            self.options.bits(),
         ]);
 
         // Add the length
@@ -59,21 +59,11 @@ impl Command for FileTransferInit {
         // Add the version
         payload.extend(self.version.to_le_bytes());
 
-        // Convert the file name into a 24 byte long ASCII string
-        let file_name = self.file_name.as_ascii_str()?;
-        let mut file_name_bytes: [u8; 24] = [0; 24];
-        for (i, byte) in file_name.as_slice().iter().enumerate() {
-            if i + 1 > 24 {
-                break;
-            }
-            file_name_bytes[i] = *byte as u8;
-        }
-
         // Add the file name to the payload
-        payload.extend(file_name_bytes);
+        payload.extend(self.name);
 
         // Encode an extended command with id 0x11
-        super::Extended(0x11, payload).encode_request()
+        super::Extended(0x11, &payload).encode_request()
     }
 
     fn decode_response(command_id: u8, data: Vec<u8>) -> Result<Self::Response, crate::errors::DecodeError> {
@@ -86,13 +76,14 @@ impl Command for FileTransferInit {
         }
 
         // Get the max_packet_size (bytes 0..1)
-        let max_packet_size = u16::from_le_bytes(payload.1.get(0..1)?);
+        // We can unwrap the try_into because we know that get will return 2 bytes
+        let max_packet_size = u16::from_le_bytes(payload.1.get(0..1).ok_or(crate::errors::DecodeError::PacketLengthError)?.try_into().unwrap());
 
         // Get the file_size (bytes 2..3)
-        let file_size = u16::from_le_bytes(payload.1.get(2..3)?);
+        let file_size = u16::from_le_bytes(payload.1.get(2..3).ok_or(crate::errors::DecodeError::PacketLengthError)?.try_into().unwrap());
 
         // Get the crc (bytes 4..8)
-        let crc = u32::from_le_bytes(payload.1.get(4..7));
+        let crc = u32::from_le_bytes(payload.1.get(4..7).ok_or(crate::errors::DecodeError::PacketLengthError)?.try_into().unwrap());
 
         // Return the result
         Ok(FileTransferInitResponse {
@@ -108,4 +99,46 @@ pub struct FileTransferInitResponse {
     max_packet_size: u16,
     file_size: u16,
     crc: u32
+}
+
+
+
+/// Exit a file transfer between the brain and host
+/// 
+/// # Members
+/// 
+/// * `0` - The action to complete when the transfer is finished
+#[derive(Copy, Clone)]
+pub struct FileTransferExit(FileTransferComplete);
+
+impl Command for FileTransferExit {
+    type Response = ();
+
+    fn encode_request(self) -> Result<(u8, Vec<u8>), crate::errors::DecodeError> {
+        
+        // Create the empty payload
+        let mut payload = Vec::<u8>::new();
+
+        // Add the file transfer complete byte
+        payload.push(self.0 as u8);
+
+        // Encode an extended command with id 0x12
+        super::Extended(0x12, &payload).encode_request()
+    }
+
+    
+
+    fn decode_response(command_id: u8, data: Vec<u8>) -> Result<Self::Response, crate::errors::DecodeError> {
+        
+        // Decode the extended command
+        let payload = super::Extended::decode_response(command_id, data)?;
+
+        // Ensure that it is a response to 0x12
+        if payload.0 != 0x12 {
+            return Err(crate::errors::DecodeError::ExpectedCommand(0x11, payload.0));
+        }
+
+        // Do nothing
+        Ok(())
+    }
 }
