@@ -135,10 +135,55 @@ impl Command for FileTransferExit {
 
         // Ensure that it is a response to 0x12
         if payload.0 != 0x12 {
-            return Err(crate::errors::DecodeError::ExpectedCommand(0x11, payload.0));
+            return Err(crate::errors::DecodeError::ExpectedCommand(0x12, payload.0));
         }
 
         // Do nothing
+        Ok(())
+    }
+}
+
+
+/// Sets the linked file for the current transfer
+/// 
+/// # Members
+/// 
+/// * `0` - The linked file name
+/// * `1` - The file VID
+/// * `2` - The file options
+#[derive(Copy, Clone)]
+pub struct FileTransferSetLink ([u8; 24], FileTransferVID, FileTransferOptions);
+
+impl Command for FileTransferSetLink {
+    type Response = ();
+
+    fn encode_request(self) -> Result<(u8, Vec<u8>), crate::errors::DecodeError> {
+        
+        // Create the packet
+        let mut packet = Vec::<u8>::new();
+
+        // Add the vid
+        packet.push(self.1 as u8);
+
+        // Add the options
+        packet.push(self.2.bits());
+
+        // Add the name
+        packet.extend(self.0);
+
+        super::Extended(0x15, &packet).encode_request()
+    }
+
+    fn decode_response(command_id: u8, data: Vec<u8>) -> Result<Self::Response, crate::errors::DecodeError> {
+        
+        // Decode the extended command
+        let payload = super::Extended::decode_response(command_id, data)?;
+
+        // Ensure that it is a response to 0x15
+        if payload.0 != 0x15 {
+            return Err(crate::errors::DecodeError::ExpectedCommand(0x15, payload.0));
+        }
+        
         Ok(())
     }
 }
