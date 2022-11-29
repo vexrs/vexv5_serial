@@ -16,26 +16,31 @@ fn main() -> anyhow::Result<()>{
 
     println!("{:?}", v);
 
+    let v5crc = crc::Crc::<u32>::new(&vexv5_serial::VEX_CRC32);
+
     // Initialize a file transfer
     device.send_request(vexv5_serial::commands::FileTransferInit {
-        function: vexv5_serial::v5::meta::FileTransferFunction::Upload,
+        function: vexv5_serial::v5::meta::FileTransferFunction::Download,
         target: vexv5_serial::v5::meta::FileTransferTarget::Flash,
         vid: vexv5_serial::v5::meta::FileTransferVID::User,
         options: vexv5_serial::v5::meta::FileTransferOptions::NONE,
         file_type: vexv5_serial::v5::meta::FileTransferType::Other(*b"txt"),
-        length: 13,
+        length: 0,
         addr: 0,
-        crc: vexv5_serial::,
+        crc: 0,
         timestamp: 0,
         version: 0,
         name: *b"test.txt\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0",
     })?;
 
-    device.send_request(vexv5_serial::commands::FileTransferWrite(0x0, b"hello, world!"))?;
+    let d = device.send_request(vexv5_serial::commands::FileTransferRead(0x0, 13))?;
 
     // Close the file transfer
     device.send_request(vexv5_serial::commands::FileTransferExit(vexv5_serial::v5::meta::FileTransferComplete::DoNothing))?;
 
+    let s = String::from_utf8(d)?;
+
+    println!("{}", s);
 
     
     Ok(())

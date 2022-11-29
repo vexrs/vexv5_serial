@@ -1,10 +1,10 @@
-use crate::v5::meta::{
+use crate::{v5::meta::{
     FileTransferFunction,
     FileTransferTarget,
     FileTransferVID,
     FileTransferOptions,
     FileTransferType, FileTransferComplete
-};
+}, checks::VexExtPacketChecks};
 
 use super::Command;
 
@@ -227,7 +227,10 @@ impl Command for FileTransferRead {
     fn decode_response(command_id: u8, data: Vec<u8>) -> Result<Self::Response, crate::errors::DecodeError> {
         
         // Read the extended command
-        let payload = super::Extended::decode_response(command_id, data)?;
+        let payload = super::Extended::decode_extended(
+            command_id, data,
+            VexExtPacketChecks::LENGTH | VexExtPacketChecks::CRC 
+        )?;
 
         // Ensure that it is a response to 0x14
         if payload.0 != 0x14 {

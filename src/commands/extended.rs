@@ -21,7 +21,7 @@ pub struct Extended<'a>(pub u8, pub &'a[u8]);
 
 impl<'a> Extended<'a> {
     /// Decodes an extended payload from a stream
-    fn decode_extended(command_id: u8, data: Vec<u8>, checks: VexExtPacketChecks) -> Result<ExtendedResponse, crate::errors::DecodeError> {
+    pub fn decode_extended(command_id: u8, data: Vec<u8>, checks: VexExtPacketChecks) -> Result<ExtendedResponse, crate::errors::DecodeError> {
 
         // Decode the simple packet
         let packet = (command_id, data);
