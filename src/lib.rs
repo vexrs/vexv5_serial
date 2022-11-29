@@ -71,7 +71,7 @@ pub mod file {
         FileTransferOptions as FTOptions,
         FileTransferType as FTType,
         FileTransferComplete as FTComplete,
-    }
+    };
 }
 
 /// Vex uses CRC16/XMODEM as the CRC16.
