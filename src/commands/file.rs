@@ -233,13 +233,59 @@ impl Command for FileTransferRead {
             return Err(crate::errors::DecodeError::ExpectedCommand(0x14, payload.0));
         }
 
-        // Read in the number of bytes we read
-        let nbytes =  u32::from_le_bytes(payload.1.get(0..3).ok_or(crate::errors::DecodeError::PacketLengthError)?.try_into().unwrap());
+        
+        // Return the data
+        Ok(payload.1)
+    }
+}
 
-        // Read in the data
-        let data = payload.1.get(4..4+(nbytes as usize)).ok_or(crate::errors::DecodeError::PacketLengthError)?;
 
-        // Return the data as a vec
-        Ok(data.to_vec())
+
+/// Write data to a file transfer
+/// 
+/// # Members
+/// 
+/// * `0` - The address to write at
+/// * `1` - The data to write
+pub struct FileTransferWrite<'a>(u32, &'a[u8]);
+
+impl<'a> Command for FileTransferWrite<'a> {
+    type Response = ();
+
+    fn encode_request(self) -> Result<(u8, Vec<u8>), crate::errors::DecodeError> {
+        
+        // Create the payload vec
+        let mut packet = Vec::<u8>::new();
+
+        // Pad the payload to 4 bytes
+        let mut payload = self.1.to_vec();
+        payload.resize(if payload.len() % 4 == 0 {
+            payload.len()
+        } else {
+            payload.len() + 4 - (payload.len() % 4)
+        },0);
+
+        // Add the address to the packet
+        packet.extend(self.0.to_le_bytes());
+
+        // Add the payload to the packet
+        packet.extend(payload);
+
+        // Return the parsed extended packet with id 0x13
+        super::Extended(0x13, &packet).encode_request()
+    }
+
+    fn decode_response(command_id: u8, data: Vec<u8>) -> Result<Self::Response, crate::errors::DecodeError> {
+        // Read the extended command
+        let payload = super::Extended::decode_response(command_id, data)?;
+
+        // Ensure that it is a response to 0x13
+        if payload.0 != 0x13 {
+            return Err(crate::errors::DecodeError::ExpectedCommand(0x13, payload.0));
+        }
+
+        
+        // Return Ok
+        Ok(())
     }
 }
