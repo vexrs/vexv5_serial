@@ -116,11 +116,9 @@ impl Command for FileTransferExit {
 
     fn encode_request(self) -> Result<(u8, Vec<u8>), crate::errors::DecodeError> {
         
-        // Create the empty payload
-        let mut payload = Vec::<u8>::new();
-
+        // Create the empty payload and
         // Add the file transfer complete byte
-        payload.push(self.0 as u8);
+        let payload = vec![self.0 as u8];
 
         // Encode an extended command with id 0x12
         super::Extended(0x12, &payload).encode_request()

@@ -16,7 +16,7 @@ fn main() -> anyhow::Result<()>{
 
     println!("{:?}", v);
 
-    let v5crc = crc::Crc::<u32>::new(&vexv5_serial::VEX_CRC32);
+    //let v5crc = crc::Crc::<u32>::new(&vexv5_serial::VEX_CRC32);
 
     // Initialize a file transfer
     device.send_request(vexv5_serial::commands::FileTransferInit {
