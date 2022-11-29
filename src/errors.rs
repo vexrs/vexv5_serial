@@ -52,12 +52,13 @@ pub enum VexACKType {
     NACKProgramFileError = 0xD3,
     NACKUninitializedTransfer = 0xD4,
     NACKInitializationInvalid = 0xD5,
-    NACKLengthModFourNzero = 0xD6,
-    NACKAddrNoMatch = 0xD7,
+    NACKLengthNotPaddedTo4 = 0xD6,
+    NACKAddressNoMatch = 0xD7,
     NACKDownloadLengthNoMatch = 0xD8,
     NACKDirectoryNoExist = 0xD9,
     NACKNoFileRoom = 0xDA,
     NACKFileAlreadyExists = 0xDB,
+    NACKGeneral = 0xFF,
 }
 
 impl VexACKType {
