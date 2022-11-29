@@ -41,6 +41,39 @@ pub mod checks;
 
 use crc::Algorithm;
 
+pub mod extended {
+    pub use crate::commands::{Extended, ExtendedResponse};
+}
+
+pub mod kv {
+    pub use crate::commands::{KVRead, KVWrite};
+}
+
+pub mod system {
+    pub use crate::commands::{V5SystemVersion, GetSystemVersion};
+}
+
+/// Structs in this crate will be used a lot, so they are shortened.
+pub mod file {
+    pub use crate::commands::{
+        FileTransferExit as FTExit,
+        FileTransferInit as FTInit,
+        FileTransferInitResponse as FTInitResponse,
+        FileTransferRead as FTRead,
+        FileTransferSetLink as FTSetLink,
+        FileTransferWrite as FTWrite
+    };
+
+    pub use crate::v5::meta::{
+        FileTransferFunction as FTFunction,
+        FileTransferTarget as FTTarget,
+        FileTransferVID as FTVID,
+        FileTransferOptions as FTOptions,
+        FileTransferType as FTType,
+        FileTransferComplete as FTComplete,
+    }
+}
+
 /// Vex uses CRC16/XMODEM as the CRC16.
 pub const VEX_CRC16: Algorithm<u16> = crc::CRC_16_XMODEM;
 
