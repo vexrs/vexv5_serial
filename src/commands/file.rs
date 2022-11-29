@@ -12,17 +12,17 @@ use super::Command;
 /// Initializes a file transfer between the brain and host
 #[derive(Copy, Clone)]
 pub struct FileTransferInit {
-    function: FileTransferFunction,
-    target: FileTransferTarget,
-    vid: FileTransferVID,
-    options: FileTransferOptions,
-    file_type: FileTransferType,
-    length: u32,
-    addr: u32,
-    crc: u32,
-    timestamp: u32,
-    version: u32,
-    name: [u8; 24]
+    pub function: FileTransferFunction,
+    pub target: FileTransferTarget,
+    pub vid: FileTransferVID,
+    pub options: FileTransferOptions,
+    pub file_type: FileTransferType,
+    pub length: u32,
+    pub addr: u32,
+    pub crc: u32,
+    pub timestamp: u32,
+    pub version: u32,
+    pub name: [u8; 24]
 }
 
 impl Command for FileTransferInit {
@@ -77,13 +77,13 @@ impl Command for FileTransferInit {
 
         // Get the max_packet_size (bytes 0..1)
         // We can unwrap the try_into because we know that get will return 2 bytes
-        let max_packet_size = u16::from_le_bytes(payload.1.get(0..1).ok_or(crate::errors::DecodeError::PacketLengthError)?.try_into().unwrap());
+        let max_packet_size = u16::from_le_bytes(payload.1.get(0..2).ok_or(crate::errors::DecodeError::PacketLengthError)?.try_into().unwrap());
 
         // Get the file_size (bytes 2..3)
-        let file_size = u16::from_le_bytes(payload.1.get(2..3).ok_or(crate::errors::DecodeError::PacketLengthError)?.try_into().unwrap());
+        let file_size = u16::from_le_bytes(payload.1.get(2..4).ok_or(crate::errors::DecodeError::PacketLengthError)?.try_into().unwrap());
 
         // Get the crc (bytes 4..8)
-        let crc = u32::from_le_bytes(payload.1.get(4..7).ok_or(crate::errors::DecodeError::PacketLengthError)?.try_into().unwrap());
+        let crc = u32::from_le_bytes(payload.1.get(4..8).ok_or(crate::errors::DecodeError::PacketLengthError)?.try_into().unwrap());
 
         // Return the result
         Ok(FileTransferInitResponse {
@@ -96,9 +96,9 @@ impl Command for FileTransferInit {
 
 #[derive(Copy, Clone)]
 pub struct FileTransferInitResponse {
-    max_packet_size: u16,
-    file_size: u16,
-    crc: u32
+    pub max_packet_size: u16,
+    pub file_size: u16,
+    pub crc: u32
 }
 
 
@@ -109,7 +109,7 @@ pub struct FileTransferInitResponse {
 /// 
 /// * `0` - The action to complete when the transfer is finished
 #[derive(Copy, Clone)]
-pub struct FileTransferExit(FileTransferComplete);
+pub struct FileTransferExit(pub FileTransferComplete);
 
 impl Command for FileTransferExit {
     type Response = ();
@@ -152,7 +152,7 @@ impl Command for FileTransferExit {
 /// * `1` - The file VID
 /// * `2` - The file options
 #[derive(Copy, Clone)]
-pub struct FileTransferSetLink ([u8; 24], FileTransferVID, FileTransferOptions);
+pub struct FileTransferSetLink (pub [u8; 24], pub FileTransferVID, pub FileTransferOptions);
 
 impl Command for FileTransferSetLink {
     type Response = ();
@@ -196,7 +196,8 @@ impl Command for FileTransferSetLink {
 /// 
 /// * `0` - The address to read data from
 /// * `1` - The number of bytes to read, will be padded to 4 bytes
-struct FileTransferRead(u32, u16);
+#[derive(Copy, Clone)]
+pub struct FileTransferRead(pub u32, pub u16);
 
 impl Command for FileTransferRead {
     type Response = Vec<u8>;
@@ -247,7 +248,8 @@ impl Command for FileTransferRead {
 /// 
 /// * `0` - The address to write at
 /// * `1` - The data to write
-pub struct FileTransferWrite<'a>(u32, &'a[u8]);
+#[derive(Copy, Clone)]
+pub struct FileTransferWrite<'a>(pub u32, pub &'a[u8]);
 
 impl<'a> Command for FileTransferWrite<'a> {
     type Response = ();

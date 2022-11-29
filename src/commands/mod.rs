@@ -10,6 +10,14 @@ mod system;
 pub use system::{GetSystemVersion, V5SystemVersion};
 
 mod file;
+pub use file::{
+    FileTransferInit,
+    FileTransferInitResponse,
+    FileTransferExit,
+    FileTransferSetLink,
+    FileTransferWrite,
+    FileTransferRead
+};
 
 /// A command trait that every command implements
 pub trait Command {
