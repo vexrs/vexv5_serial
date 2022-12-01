@@ -80,10 +80,10 @@ impl Command for FileTransferInit {
         let max_packet_size = u16::from_le_bytes(payload.1.get(0..2).ok_or(crate::errors::DecodeError::PacketLengthError)?.try_into().unwrap());
 
         // Get the file_size (bytes 2..3)
-        let file_size = u16::from_le_bytes(payload.1.get(2..4).ok_or(crate::errors::DecodeError::PacketLengthError)?.try_into().unwrap());
+        let file_size = u32::from_le_bytes(payload.1.get(2..6).ok_or(crate::errors::DecodeError::PacketLengthError)?.try_into().unwrap());
 
         // Get the crc (bytes 4..8)
-        let crc = u32::from_le_bytes(payload.1.get(4..8).ok_or(crate::errors::DecodeError::PacketLengthError)?.try_into().unwrap());
+        let crc = u32::from_le_bytes(payload.1.get(6..10).ok_or(crate::errors::DecodeError::PacketLengthError)?.try_into().unwrap());
 
         // Return the result
         Ok(FileTransferInitResponse {
@@ -97,7 +97,7 @@ impl Command for FileTransferInit {
 #[derive(Copy, Clone)]
 pub struct FileTransferInitResponse {
     pub max_packet_size: u16,
-    pub file_size: u16,
+    pub file_size: u32,
     pub crc: u32
 }
 
