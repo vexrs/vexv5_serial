@@ -23,7 +23,7 @@ use super::Command;
 ///
 /// ```
 #[derive(Copy, Clone)]
-pub struct SwitchChannel(V5ControllerChannel);
+pub struct SwitchChannel(pub V5ControllerChannel);
 
 impl Command for SwitchChannel {
     type Response = ();
