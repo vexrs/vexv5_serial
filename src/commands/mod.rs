@@ -16,7 +16,8 @@ pub use file::{
     FileTransferExit,
     FileTransferSetLink,
     FileTransferWrite,
-    FileTransferRead
+    FileTransferRead,
+    GetFileMetadataByName
 };
 
 mod remote;

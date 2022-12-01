@@ -24,6 +24,8 @@ pub enum DecodeError {
     ExpectedCommand(u8, u8),
     #[error("device error")]
     DeviceError(#[from] DeviceError),
+    #[error("invalid value")]
+    InvalidValue(String),
 }
 
 #[derive(Error, Debug)]

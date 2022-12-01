@@ -3,7 +3,7 @@ use crate::{v5::meta::{
     FileTransferTarget,
     FileTransferVID,
     FileTransferOptions,
-    FileTransferType, FileTransferComplete
+    FileTransferType, FileTransferComplete, FileMetadataByName
 }, checks::VexExtPacketChecks};
 
 use super::Command;
@@ -290,5 +290,66 @@ impl<'a> Command for FileTransferWrite<'a> {
         
         // Return Ok
         Ok(())
+    }
+}
+
+
+
+
+/// Gets file metadata by file name
+/// 
+/// # Members
+/// 
+/// * `0` - The name of the file
+/// * `1` - The VID of the file
+/// * `2` - The file transfer options -- Use NONE
+/// 
+#[derive(Copy, Clone, Debug)]
+pub struct GetFileMetadataByName<'a>(pub &'a [u8; 24], FileTransferVID, FileTransferOptions);
+
+impl<'a> Command for GetFileMetadataByName<'a> {
+    type Response = FileMetadataByName;
+
+    fn encode_request(self) -> Result<(u8, Vec<u8>), crate::errors::DecodeError> {
+        
+        // Create the payload with the vid and optione
+        let mut payload = vec![self.1 as u8, self.2.bits()];
+
+        // Add the file name
+        payload.extend(self.0);
+
+        // Return the extended command with id 0x19
+        super::Extended(0x19, &payload).encode_request()
+    }
+
+    fn decode_response(command_id: u8, data: Vec<u8>) -> Result<Self::Response, crate::errors::DecodeError> {
+        
+        // Read the extended command
+        let payload = super::Extended::decode_response(command_id, data)?;
+
+        // Ensure that it is a response to 0x19
+        if payload.0 != 0x19 {
+            return Err(crate::errors::DecodeError::ExpectedCommand(0x19, payload.0));
+        }
+
+        // Ensure that the payload size is at least 49 bytes
+        if payload.1.len() < 49 {
+            return Err(crate::errors::DecodeError::PacketLengthError);
+        }
+
+        // Parse in the data
+        let result = FileMetadataByName {
+            linked_vid: FileTransferVID::try_from_u8(payload.1[0])?,
+            file_type: FileTransferType::from_bytes(payload.1[1..5].try_into().unwrap()),
+            length: u32::from_le_bytes(payload.1[5..9].try_into().unwrap()),
+            addr: u32::from_le_bytes(payload.1[9..13].try_into().unwrap()),
+            crc: u32::from_le_bytes(payload.1[13..17].try_into().unwrap()),
+            timestamp: u32::from_le_bytes(payload.1[17..21].try_into().unwrap()),
+            version: u32::from_le_bytes(payload.1[21..25].try_into().unwrap()),
+            linked_filename: payload.1[25..49].try_into().unwrap(),
+        };
+
+        // Return the data
+        Ok(result)
     }
 }

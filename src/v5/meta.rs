@@ -73,7 +73,7 @@ bitflags!{
 /// * `Upload` - use when writing to a file on the brain
 /// * `Download` - use when reading from a file on the brain
 #[repr(u8)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 
 pub enum FileTransferFunction {
     Upload = 0x01,
@@ -87,7 +87,7 @@ pub enum FileTransferFunction {
 /// * `Flash` - The flash memory on the robot brain where most program files are stored
 /// * `Screen` - The memory accessed when taking a screen capture from the brain.
 #[repr(u8)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum FileTransferTarget {
     Flash = 0x01,
     Screen = 0x02,
@@ -95,7 +95,7 @@ pub enum FileTransferTarget {
 
 /// The VID of a file transfer
 #[repr(u8)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum FileTransferVID {
     User = 1,
     System = 15,
@@ -104,6 +104,18 @@ pub enum FileTransferVID {
     MW = 32,
 }
 
+impl FileTransferVID {
+    pub fn try_from_u8(v: u8) -> Result<Self, crate::errors::DecodeError> {
+        match v {
+            1 =>  Ok(Self::User),
+            15 => Ok(Self::System),
+            16 => Ok(Self::RMS),
+            24 => Ok(Self::PROS),
+            32 => Ok(Self::MW),
+            _ => Err(crate::errors::DecodeError::InvalidValue("VID".to_string()))
+        }
+    }
+}
 
 bitflags! {
     /// Options in a file transfer
@@ -123,7 +135,7 @@ bitflags! {
 /// * `Ini` - Ini files for program metadata and configuration
 /// * `Other` - Any other file type, including custom user types
 #[repr(u8)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum FileTransferType {
     Bin,
     Ini,
@@ -138,13 +150,47 @@ impl FileTransferType {
             Self::Other(t) => [t[0], t[1], t[2], 0u8],
         }
     }
+
+    pub fn from_bytes(v: &[u8; 4]) -> Self {
+        match &v {
+            [0x62, 0x69, 0x6e, 0x0] => Self::Bin,
+            [0x69, 0x6e, 0x69, 0x0] => Self::Ini,
+            _ => Self::Other([v[0], v[1], v[2]])
+        }
+    }
 }
 
 /// The action to run when the transfer is complete
 #[repr(u8)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum FileTransferComplete {
     DoNothing = 0,
     RunProgram = 1,
     ShowRunScreen = 2,
+}
+
+/// File metadata returned when requesting file metadata by index
+#[derive(Copy, Clone, Debug)]
+pub struct FileMetadataByIndex {
+    pub idx: u8,
+    pub file_type: FileTransferType,
+    pub length: u32,
+    pub addr: u32,
+    pub crc: u32,
+    pub timestamp: u32,
+    pub version: u32,
+    pub name: [u8; 24],
+}
+
+/// File metadata returned when requesting file metadata by name
+#[derive(Copy, Clone, Debug)]
+pub struct FileMetadataByName {
+    pub linked_vid: FileTransferVID,
+    pub file_type: FileTransferType,
+    pub length: u32,
+    pub addr: u32,
+    pub crc: u32,
+    pub timestamp: u32,
+    pub version: u32,
+    pub linked_filename: [u8; 24],
 }

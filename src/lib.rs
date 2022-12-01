@@ -89,6 +89,7 @@ pub mod file {
         FileTransferOptions as FTOptions,
         FileTransferType as FTType,
         FileTransferComplete as FTComplete,
+        FileMetadataByName,
     };
 }
 
