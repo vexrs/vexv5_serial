@@ -79,7 +79,8 @@ pub mod file {
         FileTransferInitResponse as FTInitResponse,
         FileTransferRead as FTRead,
         FileTransferSetLink as FTSetLink,
-        FileTransferWrite as FTWrite
+        FileTransferWrite as FTWrite,
+        GetFileMetadataByName
     };
 
     pub use crate::v5::meta::{

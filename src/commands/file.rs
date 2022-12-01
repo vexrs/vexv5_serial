@@ -305,7 +305,7 @@ impl<'a> Command for FileTransferWrite<'a> {
 /// * `2` - The file transfer options -- Use NONE
 /// 
 #[derive(Copy, Clone, Debug)]
-pub struct GetFileMetadataByName<'a>(pub &'a [u8; 24], FileTransferVID, FileTransferOptions);
+pub struct GetFileMetadataByName<'a>(pub &'a [u8; 24], pub FileTransferVID, pub FileTransferOptions);
 
 impl<'a> Command for GetFileMetadataByName<'a> {
     type Response = FileMetadataByName;
