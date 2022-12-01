@@ -20,6 +20,16 @@ impl<S: Read + Write, U: Read+Write> Device<S, U> {
         }
     }
 
+    /// Returns true if this device is a controller
+    pub fn is_controller(&mut self) -> Result<bool, crate::errors::DecodeError> {
+        // Get the vex system info
+        // Return true if this is a controller
+        Ok(match self.send_request(crate::system::GetSystemVersion())?.product_type {
+            crate::system::VexProductType::V5Brain(_) => false,
+            crate::system::VexProductType::V5Controller(_) => true,
+        })
+    }
+
     /// Updates the size of the chunks to read from the system port when a user port is not available
     pub fn update_user_read_size(&mut self, user_read_size: u8) {
         self.user_read_size = user_read_size;
