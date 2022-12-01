@@ -19,6 +19,9 @@ pub use file::{
     FileTransferRead
 };
 
+mod remote;
+pub use remote::SwitchChannel;
+
 /// A command trait that every command implements
 pub trait Command {
     type Response;

@@ -3,13 +3,13 @@ use bitflags::bitflags;
 
 /// Enum that represents the channel
 /// for the V5 Controller
+#[derive(Copy, Clone)]
 pub enum V5ControllerChannel {
-    /// Used when wirelessly controlling the 
-    /// V5 Brain
-    PIT = 0x00,
-    /// Used when wirelessly uploading data to the V5
+    /// Used when driving the robot outside of a competition match
+    Pit = 0x00,
+    /// Used when wirelessly uploading or downloading data to/from the V5
     /// Brain
-    UPLOAD = 0x01,
+    Download = 0x01,
 }
 
 

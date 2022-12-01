@@ -162,10 +162,10 @@ impl<S: Read + Write, U: Read+Write> Device<S, U> {
         // that use small reads to be much faster.
         if self.read_buffer.len() < buf.len() {
             // Form a custom Extended command to read and write from serial.
-            // We do the same as PROS, reading 64 bytes and specifying upload channel for some reason
+            // We do the same as PROS, reading 64 bytes and specifying upload channel
             // Except we only read up to 64 bytes at a time, so that the user can configure if they want to 
             // read smaller chunks (and thus bypass CRC errors from packet corruption, at the expense of speed)
-            let payload = vec![meta::V5ControllerChannel::UPLOAD as u8, u8::min(0x40, self.user_read_size)];
+            let payload = vec![meta::V5ControllerChannel::Download as u8, u8::min(0x40, self.user_read_size)];
 
             // Send the extended command 0x27
             let res = self.send_request(crate::commands::Extended(0x27, &payload))?;
