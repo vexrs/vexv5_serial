@@ -102,17 +102,29 @@ pub enum FileTransferVID {
     RMS = 16,
     PROS = 24,
     MW = 32,
+    Other(u8)
 }
 
 impl FileTransferVID {
-    pub fn try_from_u8(v: u8) -> Result<Self, crate::errors::DecodeError> {
+    pub fn from_u8(v: u8) -> Self {
         match v {
-            1 =>  Ok(Self::User),
-            15 => Ok(Self::System),
-            16 => Ok(Self::RMS),
-            24 => Ok(Self::PROS),
-            32 => Ok(Self::MW),
-            _ => Err(crate::errors::DecodeError::InvalidValue("VID".to_string()))
+            1 =>  Self::User,
+            15 => Self::System,
+            16 => Self::RMS,
+            24 => Self::PROS,
+            32 => Self::MW,
+            a => Self::Other(a)
+        }
+    }
+
+    pub fn to_u8(self) -> u8 {
+        match self {
+            FileTransferVID::User => 1,
+            FileTransferVID::System => 15,
+            FileTransferVID::RMS => 16,
+            FileTransferVID::PROS => 24,
+            FileTransferVID::MW => 32,
+            FileTransferVID::Other(a) => a,
         }
     }
 }

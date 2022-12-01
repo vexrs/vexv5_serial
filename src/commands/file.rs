@@ -37,7 +37,7 @@ impl Command for FileTransferInit {
         payload.extend([
             self.function as u8,
             self.target as u8,
-            self.vid as u8,
+            self.vid.to_u8(),
             self.options.bits(),
         ]);
 
@@ -161,7 +161,7 @@ impl Command for FileTransferSetLink {
         let mut packet = Vec::<u8>::new();
 
         // Add the vid
-        packet.push(self.1 as u8);
+        packet.push(self.1.to_u8());
 
         // Add the options
         packet.push(self.2.bits());
@@ -313,7 +313,7 @@ impl<'a> Command for GetFileMetadataByName<'a> {
     fn encode_request(self) -> Result<(u8, Vec<u8>), crate::errors::DecodeError> {
         
         // Create the payload with the vid and optione
-        let mut payload = vec![self.1 as u8, self.2.bits()];
+        let mut payload = vec![self.1.to_u8(), self.2.bits()];
 
         // Add the file name
         payload.extend(self.0);
@@ -339,7 +339,7 @@ impl<'a> Command for GetFileMetadataByName<'a> {
 
         // Parse in the data
         let result = FileMetadataByName {
-            linked_vid: FileTransferVID::try_from_u8(payload.1[0])?,
+            linked_vid: FileTransferVID::from_u8(payload.1[0]),
             length: u32::from_le_bytes(payload.1[1..5].try_into().unwrap()),
             addr: u32::from_le_bytes(payload.1[5..9].try_into().unwrap()),
             crc: u32::from_le_bytes(payload.1[9..13].try_into().unwrap()),
