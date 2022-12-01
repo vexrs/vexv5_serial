@@ -22,8 +22,8 @@ pub enum SocketInfoPairs {
     /// 
     /// # Members
     /// 
-    /// * `0` - The system port that communicates with VEXOS. Commands are sent over this port.
-    /// * `1` - The user port that communicates directly with the user program
+    /// * `0` - The user port that communicates directly with the user program
+    /// * `1` - The system port that communicates with VEXOS. Commands are sent over this port.
     /// 
     UserSystem(VexSerialInfo, VexSerialInfo),
 
@@ -64,10 +64,10 @@ pub fn get_socket_info_pairs() -> Result<Vec<SocketInfoPairs>, crate::errors::De
                 Some(p) => p.port_type == ports::VexSerialType::User,
                 _ => false,
             } {
-                pairs.push(SocketInfoPairs::UserSystem(current_port.clone(), match port_iter.next() {
+                pairs.push(SocketInfoPairs::UserSystem(match port_iter.next() {
                     Some(p) => p.clone(),
                     None => break,
-                }));
+                }, current_port.clone()));
                 break;
             } else {
                 // If not, add a System only port
@@ -97,7 +97,7 @@ pub fn get_socket_info_pairs() -> Result<Vec<SocketInfoPairs>, crate::errors::De
 pub fn open_device(wraps: &SocketInfoPairs) -> Result<(SerialDevice, Option<SerialDevice>), crate::errors::DeviceError> {
     // Create the user and system ports
     Ok(match wraps {
-        SocketInfoPairs::UserSystem(system, user) => {
+        SocketInfoPairs::UserSystem(user, system) => {
             (
                 match serialport::new(&system.port_info.port_name, 115200)
                 .parity(serialport::Parity::None)
