@@ -340,10 +340,10 @@ impl<'a> Command for GetFileMetadataByName<'a> {
         // Parse in the data
         let result = FileMetadataByName {
             linked_vid: FileTransferVID::try_from_u8(payload.1[0])?,
-            file_type: FileTransferType::from_bytes(payload.1[1..5].try_into().unwrap()),
-            length: u32::from_le_bytes(payload.1[5..9].try_into().unwrap()),
-            addr: u32::from_le_bytes(payload.1[9..13].try_into().unwrap()),
-            crc: u32::from_le_bytes(payload.1[13..17].try_into().unwrap()),
+            length: u32::from_le_bytes(payload.1[1..5].try_into().unwrap()),
+            addr: u32::from_le_bytes(payload.1[5..9].try_into().unwrap()),
+            crc: u32::from_le_bytes(payload.1[9..13].try_into().unwrap()),
+            file_type: FileTransferType::from_bytes(payload.1[13..17].try_into().unwrap()),
             timestamp: u32::from_le_bytes(payload.1[17..21].try_into().unwrap()),
             version: u32::from_le_bytes(payload.1[21..25].try_into().unwrap()),
             linked_filename: payload.1[25..49].try_into().unwrap(),
