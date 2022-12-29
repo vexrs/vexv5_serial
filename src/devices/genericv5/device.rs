@@ -2,6 +2,8 @@
 
 use std::io::{Read, Write};
 
+use crate::devices::VexDevice;
+
 
 /// The representation of a V5 device
 pub struct Device<S: Read + Write, U: Read+Write> {
@@ -12,11 +14,11 @@ pub struct Device<S: Read + Write, U: Read+Write> {
 }
 
 impl<S: Read + Write, U: Read+Write> Device<S, U> {
-    pub fn new(system: S, user: Option<U>) -> Self {
+    pub fn new(dev: impl VexDevice<S, U>) -> Self {
         
         Device {
-            system_port: system,
-            user_port: user,
+            system_port: dev.get_system_port(),
+            user_port: dev.get_user_port(),
             read_buffer: Vec::new(),
             user_read_size: 0x20, // By default, read chunks of 32 bytes
         }
@@ -177,7 +179,7 @@ impl<S: Read + Write, U: Read+Write> Device<S, U> {
             // We do the same as PROS, reading 64 bytes and specifying upload channel
             // Except we only read up to 64 bytes at a time, so that the user can configure if they want to 
             // read smaller chunks (and thus bypass CRC errors from packet corruption, at the expense of speed)
-            let payload = vec![meta::V5ControllerChannel::Download as u8, u8::min(0x40, self.user_read_size)];
+            let payload = vec![crate::v5::V5ControllerChannel::Download as u8, u8::min(0x40, self.user_read_size)];
 
             // Send the extended command 0x27
             let res = self.send_request(crate::commands::Extended(0x27, &payload))?;
