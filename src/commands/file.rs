@@ -1,4 +1,4 @@
-use crate::{v5::meta::{
+use crate::{v5::{
     FileTransferFunction,
     FileTransferTarget,
     FileTransferVID,

@@ -1,6 +1,6 @@
 //! Implements a command for setting the controller's channel
 
-use crate::v5::meta::V5ControllerChannel;
+use crate::v5::V5ControllerChannel;
 use super::Command;
 
 /// Switches the controller's channel

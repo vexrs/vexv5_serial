@@ -41,7 +41,6 @@ pub mod checks;
 
 use crc::Algorithm;
 
-pub use v5::Device;
 pub use devices::{
     get_socket_info_pairs,
     open_device,
@@ -59,7 +58,7 @@ pub mod kv {
 pub mod system {
     pub use crate::commands::{V5SystemVersion, GetSystemVersion};
 
-    pub use crate::v5::meta::{
+    pub use crate::v5::{
         V5BrainFlags,
         V5ControllerFlags,
         VexProductType
