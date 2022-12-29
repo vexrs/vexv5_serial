@@ -2,8 +2,6 @@
 
 use std::io::{Read, Write};
 
-use crate::devices::VexDevice;
-
 
 /// The representation of a V5 device
 pub struct Device<S: Read + Write, U: Read+Write> {
@@ -14,11 +12,11 @@ pub struct Device<S: Read + Write, U: Read+Write> {
 }
 
 impl<S: Read + Write, U: Read+Write> Device<S, U> {
-    pub fn new(dev: impl VexDevice<S, U>) -> Self {
+    pub fn new(system_port: S, user_port: Option<U>) -> Self {
         
         Device {
-            system_port: dev.get_system_port(),
-            user_port: dev.get_user_port(),
+            system_port,
+            user_port,
             read_buffer: Vec::new(),
             user_read_size: 0x20, // By default, read chunks of 32 bytes
         }

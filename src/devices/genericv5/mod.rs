@@ -1,6 +1,6 @@
 //! Implements discovering, opening, and interacting with vex devices connected over USB. This module does not have async support.
-//! Please note that every serial device uses the same structures.
-use serialport::SerialPortInfo;
+
+use serialport::{SerialPortInfo, SerialPort};
 
 use super::{VEX_USB_VID, VexPortType, VEX_V5_CONTROLLER_USB_PID, VEX_V5_BRAIN_USB_PID};
 
@@ -26,6 +26,66 @@ pub enum VexGenericSerialDevice {
     },
     V5Unknown {
         system: VexGenericSerialPort
+    }
+}
+
+impl VexGenericSerialDevice {
+    pub fn open(&self) -> Result<device::Device<Box<dyn SerialPort>, Box<dyn SerialPort>>, crate::errors::DeviceError> {
+        
+        // Match on the varient of self
+        match self {
+            Self::V5Brain { user, system } => {
+                
+                // Open the system port
+                let system_port = match serialport::new(&system.port_info.port_name, 115200)
+                    .parity(serialport::Parity::None)
+                    .timeout(std::time::Duration::new(crate::devices::SERIAL_TIMEOUT_SECONDS, crate::devices::SERIAL_TIMEOUT_NS))
+                    .stop_bits(serialport::StopBits::One).open() {
+                        Ok(v) => Ok(v),
+                        Err(e) => Err(crate::errors::DeviceError::SerialportError(e)),
+                }?;
+
+                // Open the user port
+                let user_port = Some(match serialport::new(&user.port_info.port_name, 115200)
+                    .parity(serialport::Parity::None)
+                    .timeout(std::time::Duration::new(crate::devices::SERIAL_TIMEOUT_SECONDS, crate::devices::SERIAL_TIMEOUT_NS))
+                    .stop_bits(serialport::StopBits::One).open() {
+                        Ok(v) => Ok(v),
+                        Err(e) => Err(crate::errors::DeviceError::SerialportError(e)),
+                }?);
+
+                // Create the device
+                let dev = device::Device::new(
+                    system_port,
+                    user_port,
+                );
+
+                // Return the device
+                Ok(dev)
+            },
+            Self::V5Controller { system } => {
+                // Open the system port
+                let system_port = match serialport::new(&system.port_info.port_name, 115200)
+                    .parity(serialport::Parity::None)
+                    .timeout(std::time::Duration::new(crate::devices::SERIAL_TIMEOUT_SECONDS, crate::devices::SERIAL_TIMEOUT_NS))
+                    .stop_bits(serialport::StopBits::One).open() {
+                        Ok(v) => Ok(v),
+                        Err(e) => Err(crate::errors::DeviceError::SerialportError(e)),
+                }?;
+
+                // Create the device
+                let dev = device::Device::new(
+                    system_port,
+                    None
+                );
+
+                // Return the device
+                Ok(dev)
+            },
+            _ => {
+                Err(crate::errors::DeviceError::InvalidDevice)
+            }
+        }
     }
 }
 
@@ -159,3 +219,4 @@ pub fn find_generic_devices() -> Result<Vec<VexGenericSerialDevice>, crate::erro
     // Return the devices
     Ok(vex_devices)
 }
+
