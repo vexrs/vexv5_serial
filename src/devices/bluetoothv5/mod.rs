@@ -1,153 +1,173 @@
-use std::{time::Duration, cell::RefCell, rc::Rc};
+use std::time::Duration;
+
 use bluest::{Adapter, AdvertisingDevice, Uuid, Characteristic, Service};
-use tokio::io::AsyncRead;
-use tokio::io::AsyncReadExt;
+
 use tokio_stream::StreamExt;
 
+use crate::errors::DeviceError;
+
 /// The BLE GATT Service that V5 Brains provide
-const GATT_SERVICE: &str = "08590f7e-db05-467e-8757-72f6faeb13d5";
+const GATT_SERVICE: Uuid = Uuid::from_u128(0x08590f7e_db05_467e_8757_72f6faeb13d5);
 
 /// The unknown GATT characteristic
-const GATT_UNKNOWN: &str = "08590f7e-db05-467e-8757-72f6faeb1306";
+const GATT_UNKNOWN: Uuid = Uuid::from_u128(0x08590f7e_db05_467e_8757_72f6faeb1306);
 
 /// The user port GATT characteristic
-const GATT_USER: &str = "08590f7e-db05-467e-8757-72f6faeb1316";
+const GATT_USER: Uuid = Uuid::from_u128(0x08590f7e_db05_467e_8757_72f6faeb1316);
 
 /// The system port GATT characteristic
-const GATT_SYSTEM: &str = "08590f7e-db05-467e-8757-72f6faeb13e5";
+const GATT_SYSTEM: Uuid = Uuid::from_u128(0x08590f7e_db05_467e_8757_72f6faeb13e5);
 
-/// A serial port implemented over a GATT characteristic
-pub struct BluetoothSerial {
-    inner: Rc<RefCell<BluetoothInner>>,
-    characteristic: Characteristic
-}
 
-impl AsyncRead for BluetoothSerial {
-    fn poll_read(
-        self: std::pin::Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>,
-        buf: &mut tokio::io::ReadBuf<'_>,
-    ) -> std::task::Poll<std::io::Result<()>> {
-        let fut = self.characteristic.read();
-        tokio::pin!(fut);
-        match std::future::Future::poll(fut, cx) {
-            std::task::Poll::Pending => std::task::Poll::Pending,
-            std::task::Poll::Ready(v) => {
-                match v {
-                    Ok(d) => {
-                        buf.put_slice(&d);
-                        std::task::Poll::Ready(Ok(()))
-                    },
-                    Err(e) => {
-                        std::task::Poll::Ready(Err(std::io::Error::new(std::io::ErrorKind::Other, crate::errors::DeviceError::InvalidDevice)))
-                    } 
-                }
-            }
-        }
-    }
-}
 
-/// Contains all data that needs to be shared between bluetooth serial devices.
-#[derive(Clone, Debug)]
-pub struct BluetoothInner {
-    pub adapter: Option<Adapter>,
-    pub advertising: AdvertisingDevice,
-}
 
 /// Represents a brain connected over bluetooth
 #[derive(Clone, Debug)]
-pub struct BluetoothBrain{
-    inner: Rc<RefCell<BluetoothInner>>
+pub struct BluetoothBrain {
+    adapter: Adapter,
+    system_char: Option<Characteristic>,
+    user_char: Option<Characteristic>,
+    service: Option<Service>,
+    device: AdvertisingDevice
 }
 
 impl BluetoothBrain {
-    pub async fn new(advertising: AdvertisingDevice) -> Result<Self, crate::errors::DeviceError> {
-        
-        Ok(Self {
-            inner: Rc::new(RefCell::new(BluetoothInner {
-                adapter: None,
-                advertising,
-            }))
-        })
+    pub fn new(adapter: Adapter, device: AdvertisingDevice) -> BluetoothBrain {
+        Self {
+            adapter,
+            system_char: None,
+            user_char: None,
+            service: None,
+            device
+        }
     }
 
-    /// Connects self to the brain
-    pub async fn connect(&mut self) -> Result<(), crate::errors::DeviceError> {
+    /// Connects self to .ok_or(DeviceError::NotConnected)the brain
+    pub async fn connect(&mut self) -> Result<(), DeviceError> {
 
-        // Get the adapter and wait for it to be available
-        let adapter = Adapter::default().await.ok_or(crate::errors::DeviceError::NoBluetoothAdapter)?;
-        adapter.wait_available().await?;
+        // Create the adapter
+        //self.adapter = Some(
+        //    Adapter::default().await.ok_or(
+        //        DeviceError::NoBluetoothAdapter
+        //    )?
+        //);
 
-        let mut inner = self.inner.borrow_mut();
+        // Wait for the adapter to be available
+        self.adapter.wait_available().await?;
 
-        inner.adapter = Some(adapter);
+        // For some reason we need a little delay in here
+        tokio::time::sleep(Duration::from_millis(100)).await;
 
-        inner.adapter.as_ref().ok_or(crate::errors::DeviceError::NotConnected)?.connect_device(&inner.advertising.device).await?;
+        // Connect to the device
+        self.adapter.connect_device(&self.device.device).await?;
+        
+        // And here too
+        tokio::time::sleep(Duration::from_millis(100)).await;
 
+        // Get all services on the brain
+        let services = self.device.device.discover_services().await?;
+
+        // Find the vex service
+        self.service = Some(
+            services.iter().find(|v| {
+                v.uuid() == GATT_SYSTEM
+            }).ok_or(DeviceError::InvalidDevice)?.clone()
+        ); 
+        println!("ok");
+        if let Some(service) = &self.service {
+            
+            // Get all characteristics of this service
+            let chars = service.discover_characteristics().await?;
+            
+            // Find the system characteristic
+            self.system_char = Some(
+                chars.iter().find(|v| {
+                    v.uuid() == GATT_SYSTEM
+                }).ok_or(DeviceError::InvalidDevice)?.clone()
+            );
+            // Find the user characteristic
+            self.user_char = Some(
+                chars.iter().find(|v| {
+                    v.uuid() == GATT_USER
+                }).ok_or(DeviceError::InvalidDevice)?.clone()
+            );
+        } else {
+            return Err(DeviceError::InvalidDevice)
+        }
+            
+        
+
+        
         
         Ok(())
     }
 
-    /// Handshakes to the brain, telling it we have connected
-    pub async fn handshake(&self) -> Result<(), crate::errors::DeviceError> {
+    /// Handshakes with the device, telling it we have connected
+    pub async fn handshake(&self) -> Result<(), DeviceError> {
 
-        let mut system = self.get_system().await?;
+        // Read data from the system characteristic,
+        // making sure that it equals 0xdeadface (big endian)
+        let data = self.read_system().await?;
 
-        // The system characteristic should return 0xDEADFACE. If not, the device is bad
-        let mut data = [0u8; 4];
-        system.read(&mut data).await?;
+        // If there are not four bytes, then error
+        if data.len() != 4 {
+            return Err(DeviceError::InvalidMagic);
+        }
 
-        println!("{data:?}");
+        // Parse the bytes into a big endian u32
+        let magic = u32::from_be_bytes(data.try_into().unwrap());
+
+        // If the magic number is nod 0xdeadface, then it is an invalid device
+        if magic != 0xdeadface {
+            return Err(DeviceError::InvalidMagic);
+        }
+
+        println!("{magic:x}");
 
         Ok(())
     }
 
-    pub async fn get_system(&self) -> Result<BluetoothSerial, crate::errors::DeviceError> {
-        let inner = self.inner.borrow();
-
-        let service = inner.advertising.device.discover_services_with_uuid(GATT_SERVICE.try_into().unwrap()).await?.get(0).ok_or(crate::errors::DeviceError::InvalidDevice)?.clone();
-
-        Ok(BluetoothSerial {
-            inner: self.inner.clone(),
-            characteristic: service
-                .discover_characteristics_with_uuid(GATT_SYSTEM.try_into().unwrap()).await?
-                .get(0).ok_or(crate::errors::DeviceError::InvalidDevice)?.clone()
-        })
+    /// Writes to the system port
+    pub async fn write_system(&self, buf: &[u8]) -> Result<(), DeviceError> {
+        if let Some(system) = &self.system_char {
+            Ok(system.write(buf).await?)
+        } else {
+            Err(DeviceError::NotConnected)
+        }
     }
 
-    pub async fn get_user(&self) -> Result<BluetoothSerial, crate::errors::DeviceError> {
-        let inner = self.inner.borrow();
-
-        let service = inner.advertising.device.discover_services_with_uuid(GATT_SERVICE.try_into().unwrap()).await?.get(0).ok_or(crate::errors::DeviceError::InvalidDevice)?.clone();
-
-        Ok(BluetoothSerial {
-            inner: self.inner.clone(),
-            characteristic: service
-                .discover_characteristics_with_uuid(GATT_USER.try_into().unwrap()).await?
-                .get(0).ok_or(crate::errors::DeviceError::InvalidDevice)?.clone()
-        })
+    /// Reads from the system port
+    pub async fn read_system(&self) -> Result<Vec<u8>, DeviceError> {
+        if let Some(system) = &self.system_char {
+            Ok(system.read().await?)
+        } else {
+            Err(DeviceError::NotConnected)
+        }
     }
+
 
     /// Disconnects self from the brain
-    pub async fn disconnect(&self) -> Result<(), crate::errors::DeviceError> {
+    pub async fn disconnect(&self) -> Result<(), DeviceError> {
 
-        let inner = self.inner.borrow();
-
-        inner.adapter.as_ref().ok_or(crate::errors::DeviceError::NotConnected)?.disconnect_device(&inner.advertising.device).await?;
+        // Disconnect the device
+        self.adapter.disconnect_device(&self.device.device).await?;
 
         Ok(())
     }
 }
 
+
+
+
 /// Discovers all V5 devices that are advertising over bluetooth.
 /// By default it scans for 5 seconds, but this can be configured
-pub async fn scan_for_v5_devices(timeout: Option<Duration>) -> Result<Vec<BluetoothBrain>, crate::errors::DeviceError> {
+pub async fn scan_for_v5_devices(timeout: Option<Duration>) -> Result<Vec<BluetoothBrain>, DeviceError> {
 
     // If timeout is None, then default to five seconds
     let timeout = timeout.unwrap_or_else(|| Duration::new(5, 0));
 
     // Get the adapter and wait for it to be available
-    let adapter = Adapter::default().await.ok_or(crate::errors::DeviceError::NoBluetoothAdapter)?;
+    let adapter = Adapter::default().await.ok_or(DeviceError::NoBluetoothAdapter)?;
     adapter.wait_available().await?;
 
     // Create the GATT UUID
@@ -168,7 +188,7 @@ pub async fn scan_for_v5_devices(timeout: Option<Duration>) -> Result<Vec<Blueto
 
     // Find each device
     while let Ok(Some(discovered_device)) = timeout_stream.try_next().await {
-        devices.push(BluetoothBrain::new(discovered_device).await?);
+        devices.push(BluetoothBrain::new(adapter.clone(), discovered_device));
         // If over timeout has passed, then break
         if time.elapsed().unwrap() >= timeout {
             break;
