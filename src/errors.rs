@@ -44,6 +44,8 @@ pub enum DeviceError {
     NoBluetoothAdapter,
     #[error("Not connected to the device")]
     NotConnected,
+    #[error("Invalid Magic Number")]
+    InvalidMagic
 }
 
 /// A V5 device can respond with various different acknowledgements.
