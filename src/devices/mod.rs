@@ -1,8 +1,10 @@
 //! Implements functions and structures for interacting with vex devices.
 
 pub mod genericv5;
+pub mod bluetoothv5;
 pub mod device;
 pub mod asyncdevice;
+
 
 /// The default timeout for a serial connection in seconds
 pub const SERIAL_TIMEOUT_SECONDS: u64 = 30;
