@@ -1,8 +1,8 @@
 //! Implements discovering, opening, and interacting with vex devices connected over USB. This module does not have async support.
 
-use serialport::{SerialPortInfo, SerialPort};
 
-use super::{VEX_USB_VID, VexPortType, VEX_V5_CONTROLLER_USB_PID, VEX_V5_BRAIN_USB_PID};
+
+use super::{VEX_USB_VID, VexPortType, VEX_V5_CONTROLLER_USB_PID, VEX_V5_BRAIN_USB_PID, VexDevice, VexDeviceType};
 
 pub mod device;
 
@@ -10,83 +10,8 @@ pub mod device;
 /// The information of a generic vex serial port
 #[derive(Clone, Debug)]
 pub struct VexGenericSerialPort {
-    pub port_info: SerialPortInfo,
-    pub port_type: VexPortType
-}
-
-/// This enum represents any possible v5 device connected over serial
-#[derive(Clone, Debug)]
-pub enum VexGenericSerialDevice {
-    V5Brain {
-        user: VexGenericSerialPort,
-        system: VexGenericSerialPort
-    },
-    V5Controller {
-        system: VexGenericSerialPort
-    },
-    V5Unknown {
-        system: VexGenericSerialPort
-    }
-}
-
-impl VexGenericSerialDevice {
-    pub fn open(&self) -> Result<device::Device<Box<dyn SerialPort>, Box<dyn SerialPort>>, crate::errors::DeviceError> {
-        
-        // Match on the varient of self
-        match self {
-            Self::V5Brain { user, system } => {
-                
-                // Open the system port
-                let system_port = match serialport::new(&system.port_info.port_name, 115200)
-                    .parity(serialport::Parity::None)
-                    .timeout(std::time::Duration::new(crate::devices::SERIAL_TIMEOUT_SECONDS, crate::devices::SERIAL_TIMEOUT_NS))
-                    .stop_bits(serialport::StopBits::One).open() {
-                        Ok(v) => Ok(v),
-                        Err(e) => Err(crate::errors::DeviceError::SerialportError(e)),
-                }?;
-
-                // Open the user port
-                let user_port = Some(match serialport::new(&user.port_info.port_name, 115200)
-                    .parity(serialport::Parity::None)
-                    .timeout(std::time::Duration::new(crate::devices::SERIAL_TIMEOUT_SECONDS, crate::devices::SERIAL_TIMEOUT_NS))
-                    .stop_bits(serialport::StopBits::One).open() {
-                        Ok(v) => Ok(v),
-                        Err(e) => Err(crate::errors::DeviceError::SerialportError(e)),
-                }?);
-
-                // Create the device
-                let dev = device::Device::new(
-                    system_port,
-                    user_port,
-                );
-
-                // Return the device
-                Ok(dev)
-            },
-            Self::V5Controller { system } => {
-                // Open the system port
-                let system_port = match serialport::new(&system.port_info.port_name, 115200)
-                    .parity(serialport::Parity::None)
-                    .timeout(std::time::Duration::new(crate::devices::SERIAL_TIMEOUT_SECONDS, crate::devices::SERIAL_TIMEOUT_NS))
-                    .stop_bits(serialport::StopBits::One).open() {
-                        Ok(v) => Ok(v),
-                        Err(e) => Err(crate::errors::DeviceError::SerialportError(e)),
-                }?;
-
-                // Create the device
-                let dev = device::Device::new(
-                    system_port,
-                    None
-                );
-
-                // Return the device
-                Ok(dev)
-            },
-            _ => {
-                Err(crate::errors::DeviceError::InvalidDevice)
-            }
-        }
-    }
+    pub port_info: serialport::SerialPortInfo,
+    pub port_type: VexPortType,
 }
 
 
@@ -164,12 +89,13 @@ fn find_generic_ports() -> Result<Vec<VexGenericSerialPort>, crate::errors::Devi
 
 
 /// Finds all generic V5 devices from their ports
-pub fn find_generic_devices() -> Result<Vec<VexGenericSerialDevice>, crate::errors::DeviceError> {
+pub fn find_generic_devices() -> Result<Vec<VexDevice>, crate::errors::DeviceError> {
+
 
     // Find all vex ports
     let ports = find_generic_ports()?;
     // Create a vector of all vex devices
-    let mut vex_devices = Vec::<VexGenericSerialDevice>::new();
+    let mut vex_devices = Vec::<VexDevice>::new();
 
     // Create a peekable iterator over all of the vex ports
     let mut port_iter = ports.iter().peekable();
@@ -184,20 +110,25 @@ pub fn find_generic_devices() -> Result<Vec<VexGenericSerialDevice>, crate::erro
                     Some(p) => p.port_type == VexPortType::User,
                     _ => false
                 } {
-                vex_devices.push(VexGenericSerialDevice::V5Brain {
-                    user: port_iter.next().unwrap().clone(),
-                    system: current_port.clone()
+                vex_devices.push(VexDevice {
+                    system_port: current_port.port_info.port_name.clone(),
+                    user_port: Some(port_iter.next().unwrap().port_info.port_name.clone()),
+                    device_type: VexDeviceType::Brain
                 });
             } else {
                 // If there is only a system device, add a unknown V5 device
-                vex_devices.push(VexGenericSerialDevice::V5Unknown {
-                    system: current_port.clone()
+                vex_devices.push(VexDevice {
+                    system_port: current_port.port_info.port_name.clone(),
+                    user_port: None,
+                    device_type: VexDeviceType::Unknown
                 });
             }
         } else if current_port.port_type == VexPortType::Controller {
             // If it is a controller port, then add a controller device, because controllers have only a single port
-            vex_devices.push(VexGenericSerialDevice::V5Controller {
-                system: current_port.clone()
+            vex_devices.push(VexDevice {
+                system_port: current_port.port_info.port_name.clone(),
+                user_port: None,
+                device_type: VexDeviceType::Controller
             });
         } else if current_port.port_type == VexPortType::User {
             // If it is a user port, do the same thing we do with a system port. Except ignore it if there is no other port.
@@ -205,9 +136,10 @@ pub fn find_generic_devices() -> Result<Vec<VexGenericSerialDevice>, crate::erro
                 Some(p) => p.port_type == VexPortType::System,
                 _ => false
             } {
-                vex_devices.push(VexGenericSerialDevice::V5Brain {
-                    user: current_port.clone(),
-                    system: port_iter.next().unwrap().clone()
+                vex_devices.push(VexDevice {
+                    system_port: port_iter.next().unwrap().port_info.port_name.clone(),
+                    user_port: Some(current_port.port_info.port_name.clone()),
+                    device_type: VexDeviceType::Brain
                 });
             }
         }

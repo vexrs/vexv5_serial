@@ -1,7 +1,6 @@
 //! Implements functions and structures for interacting with vex devices.
 
 pub mod genericv5;
-pub mod asyncv5;
 
 /// The default timeout for a serial connection in seconds
 pub const SERIAL_TIMEOUT_SECONDS: u64 = 30;
@@ -29,8 +28,21 @@ pub enum VexPortType {
     Controller,
 }
 
-/// This trait implements the requirements for a vex device returned by one of the many find_device functions.
-pub trait VexDevice<S: std::io::Read + std::io::Write, U: std::io::Read + std::io::Write> {
-    fn get_system_port(&self) -> S;
-    fn get_user_port(&self) -> Option<U>;
+/// The type of a vex device
+pub enum VexDeviceType {
+    Brain,
+    Controller,
+    Unknown
+}
+
+/// This struct represents generic serial information for a vex device
+pub struct VexDevice {
+    /// The platform-specific name of the system port
+    pub system_port: String,
+
+    /// The platform-specific name of the user port
+    pub user_port: Option<String>,
+    
+    /// The type of the device
+    pub device_type: VexDeviceType
 }
