@@ -26,7 +26,7 @@ impl Command for GetSystemVersion {
         // Get and return the V5SystemVersion
         Ok(V5SystemVersion {
             system_version: (v[0], v[1], v[2], v[3], v[4]),
-            product_type: crate::v5::meta::VexProductType::try_from((v[5], v[6]))?
+            product_type: crate::v5::VexProductType::try_from((v[5], v[6]))?
         })
     }
 }
@@ -34,5 +34,5 @@ impl Command for GetSystemVersion {
 #[derive(Copy, Clone, Debug)]
 pub struct V5SystemVersion {
     pub system_version: (u8, u8, u8, u8, u8),
-    pub product_type: crate::v5::meta::VexProductType
+    pub product_type: crate::v5::VexProductType
 }

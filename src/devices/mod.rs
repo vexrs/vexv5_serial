@@ -1,10 +1,8 @@
+//! Implements functions and structures for interacting with vex devices.
 
-use anyhow::Result;
-use serialport::SerialPort;
-
-use self::ports::VexSerialInfo;
-
-pub mod ports;
+pub mod genericv5;
+pub mod device;
+pub mod asyncdevice;
 
 /// The default timeout for a serial connection in seconds
 pub const SERIAL_TIMEOUT_SECONDS: u64 = 30;
@@ -12,129 +10,123 @@ pub const SERIAL_TIMEOUT_SECONDS: u64 = 30;
 /// The default timeout for a serial connection in nanoseconds
 pub const SERIAL_TIMEOUT_NS: u32 = 0;
 
-type SerialDevice = Box<dyn SerialPort>;
+/// The USB PID of the V5 Brain
+const VEX_V5_BRAIN_USB_PID: u16 = 0x0501;
 
+/// The USB PID of the V5 Controller
+const VEX_V5_CONTROLLER_USB_PID: u16 = 0x0503;
 
-/// Represents the serial ports available for use when connecting to a specific V5 device.
-#[derive(Debug, Clone)]
-pub enum SocketInfoPairs {
-    /// Used when a robot brain is connected.
-    /// 
-    /// # Members
-    /// 
-    /// * `0` - The user port that communicates directly with the user program
-    /// * `1` - The system port that communicates with VEXOS. Commands are sent over this port.
-    /// 
-    UserSystem(VexSerialInfo, VexSerialInfo),
+/// The USB VID for Vex devices
+const VEX_USB_VID: u16 = 0x2888;
 
-    /// Used when a V5 controller is connected to the computer
-    /// 
-    /// # Members
-    /// 
-    /// * `0` - The system port of the controller. Commands can be sent over this port.
-    /// 
-    Controller(VexSerialInfo),
-
-    /// Used when a robot brain is connected but the user port is not available. Almost never used.
-    /// 
-    /// # Members
-    /// 
-    /// * `0` - The system port of the brain.
-    SystemOnly(VexSerialInfo)
+/// This enum represents three types of Vex serial devices:
+/// The User port for communication with the user program.
+/// The System port for communicating with VexOS.
+/// And the Controller port for communicating with the VexV5 joystick
+#[derive(PartialEq, Debug, Clone)]
+pub enum VexPortType {
+    User,
+    System,
+    Controller,
 }
 
-/// Discovers all serial ports on the computer that are connected to a V5 and retrieves information about them.
-/// 
-/// Returns a `Vec` of `SocketInfoPairs`.
-pub fn get_socket_info_pairs() -> Result<Vec<SocketInfoPairs>, crate::errors::DeviceError> {
-    // Initialize an empty list of pairs
-    let mut pairs: Vec<SocketInfoPairs> = Vec::new();
+/// The type of a vex device
+#[derive(Clone, Debug)]
+pub enum VexDeviceType {
+    Brain,
+    Controller,
+    Unknown
+}
 
-    // Get all vex ports
-    let vex_ports = ports::discover_vex_ports()?;
+/// This struct represents generic serial information for a vex device
+#[derive(Clone, Debug)]
+pub struct VexDevice {
+    /// The platform-specific name of the system port
+    pub system_port: String,
+
+    /// The platform-specific name of the user port
+    pub user_port: Option<String>,
     
-    // Manually iterate over the vex ports
-    let mut port_iter = vex_ports.iter().peekable();
-    while let Some(current_port) = port_iter.next() {
+    /// The type of the device
+    pub device_type: VexDeviceType
+}
+
+/// A basic no-async vex serial port.
+type VexSerialPort = Box<dyn tokio_serial::SerialPort>;
+
+impl VexDevice {
+    /// Open the device
+    pub fn open(&self) -> Result<device::Device<VexSerialPort, VexSerialPort>, crate::errors::DeviceError> {
+        // Open the system port
+        let system_port = match tokio_serial::new(&self.system_port, 115200)
+            .parity(tokio_serial::Parity::None)
+            .timeout(std::time::Duration::new(crate::devices::SERIAL_TIMEOUT_SECONDS, crate::devices::SERIAL_TIMEOUT_NS))
+            .stop_bits(tokio_serial::StopBits::One).open() {
+                Ok(v) => Ok(v),
+                Err(e) => Err(crate::errors::DeviceError::SerialportError(e)),
+        }?;
+
+        // Open the user port (if it exists)
         
-        if current_port.port_type == ports::VexSerialType::System {
-            // Peek the next port, and if it is a User port, add the next pair
-            if match port_iter.peek() {
-                Some(p) => p.port_type == ports::VexSerialType::User,
-                _ => false,
-            } {
-                pairs.push(SocketInfoPairs::UserSystem(match port_iter.next() {
-                    Some(p) => p.clone(),
-                    None => break,
-                }, current_port.clone()));
-            } else {
-                // If not, add a System only port
-                pairs.push(SocketInfoPairs::SystemOnly(current_port.clone()));
-            }
-        } else if current_port.port_type == ports::VexSerialType::Controller {
-            // Add a controlle ronly port
-            pairs.push(SocketInfoPairs::Controller(current_port.clone()));
+        let user_port = if let Some(port) = &self.user_port {
+            Some(match tokio_serial::new(port, 115200)
+                .parity(tokio_serial::Parity::None)
+                .timeout(std::time::Duration::new(crate::devices::SERIAL_TIMEOUT_SECONDS, crate::devices::SERIAL_TIMEOUT_NS))
+                .stop_bits(tokio_serial::StopBits::One).open()
+                {
+                Ok(v) => Ok(v),
+                Err(e) => Err(crate::errors::DeviceError::SerialportError(e)),
+            }?)
         } else {
-            continue;
-        }
+            None
+        };
+        
 
+        // Create the device
+        let dev = device::Device::new(
+            system_port,
+            user_port,
+        );
 
+        // Return the device
+        Ok(dev)
     }
 
-    Ok(pairs)
-}
+    /// Open the device with async support
+    pub fn open_async(&self) -> Result<asyncdevice::AsyncDevice<tokio_serial::SerialStream, tokio_serial::SerialStream>, crate::errors::DeviceError> {
+        // Open the system port
+        let system_port = match tokio_serial::SerialStream::open(&tokio_serial::new(&self.system_port, 115200)
+            .parity(tokio_serial::Parity::None)
+            .timeout(std::time::Duration::new(crate::devices::SERIAL_TIMEOUT_SECONDS, crate::devices::SERIAL_TIMEOUT_NS))
+            .stop_bits(tokio_serial::StopBits::One)) {
+                Ok(v) => Ok(v),
+                Err(e) => Err(crate::errors::DeviceError::SerialportError(e)),
+        }?;
 
+        // Open the user port (if it exists)
+        
+        let user_port = if let Some(port) = &self.user_port {
+            Some(match tokio_serial::SerialStream::open(&tokio_serial::new(port, 115200)
+                .parity(tokio_serial::Parity::None)
+                .timeout(std::time::Duration::new(crate::devices::SERIAL_TIMEOUT_SECONDS, crate::devices::SERIAL_TIMEOUT_NS))
+                .stop_bits(tokio_serial::StopBits::One))
+                {
+                Ok(v) => Ok(v),
+                Err(e) => Err(crate::errors::DeviceError::SerialportError(e)),
+            }?)
+        } else {
+            None
+        };
+        
 
-/// Opens the serial ports for a Vex V5 device.
-/// 
-/// # Returns
-/// 
-/// * `0` - The opened system port of either a controller or a brain
-/// * `1` - An optional user port that connects to the brain
-pub fn open_device(wraps: &SocketInfoPairs) -> Result<(SerialDevice, Option<SerialDevice>), crate::errors::DeviceError> {
-    // Create the user and system ports
-    Ok(match wraps {
-        SocketInfoPairs::UserSystem(user, system) => {
-            (
-                match serialport::new(&system.port_info.port_name, 115200)
-                .parity(serialport::Parity::None)
-                .timeout(std::time::Duration::new(crate::devices::SERIAL_TIMEOUT_SECONDS, crate::devices::SERIAL_TIMEOUT_NS))
-                .stop_bits(serialport::StopBits::One).open() {
-                    Ok(v) => Ok(v),
-                    Err(e) => Err(crate::errors::DeviceError::SerialportError(e)),
-                }?,
-                Some(match serialport::new(&user.port_info.port_name, 115200)
-                .parity(serialport::Parity::None)
-                .timeout(std::time::Duration::new(crate::devices::SERIAL_TIMEOUT_SECONDS, crate::devices::SERIAL_TIMEOUT_NS))
-                .stop_bits(serialport::StopBits::One).open() {
-                    Ok(v) => Ok(v),
-                    Err(e) => Err(crate::errors::DeviceError::SerialportError(e)),
-                }?)
-            )
-        },
-        SocketInfoPairs::Controller(system) => {
-            (
-                match serialport::new(&system.port_info.port_name, 115200)
-                .parity(serialport::Parity::None)
-                .timeout(std::time::Duration::new(crate::devices::SERIAL_TIMEOUT_SECONDS, crate::devices::SERIAL_TIMEOUT_NS))
-                .stop_bits(serialport::StopBits::One).open() {
-                    Ok(v) => Ok(v),
-                    Err(e) => Err(crate::errors::DeviceError::SerialportError(e)),
-                }?,
-                None
-            )
-        },
-        SocketInfoPairs::SystemOnly(system) => {
-            (
-                match serialport::new(&system.port_info.port_name, 115200)
-                .parity(serialport::Parity::None)
-                .timeout(std::time::Duration::new(crate::devices::SERIAL_TIMEOUT_SECONDS, crate::devices::SERIAL_TIMEOUT_NS))
-                .stop_bits(serialport::StopBits::One).open() {
-                    Ok(v) => Ok(v),
-                    Err(e) => Err(crate::errors::DeviceError::SerialportError(e)),
-                }?,
-                None
-            )
-        },
-    })
+        // Create the device
+        let dev = asyncdevice::AsyncDevice::new(
+            system_port,
+            user_port,
+        );
+
+        // Return the device
+        Ok(dev)
+    }
+    
 }

@@ -41,12 +41,7 @@ pub mod checks;
 
 use crc::Algorithm;
 
-pub use v5::Device;
-pub use devices::{
-    get_socket_info_pairs,
-    open_device,
-    SocketInfoPairs
-};
+
 
 pub mod extended {
     pub use crate::commands::{Extended, ExtendedResponse};
@@ -59,7 +54,7 @@ pub mod kv {
 pub mod system {
     pub use crate::commands::{V5SystemVersion, GetSystemVersion};
 
-    pub use crate::v5::meta::{
+    pub use crate::v5::{
         V5BrainFlags,
         V5ControllerFlags,
         VexProductType
@@ -69,7 +64,7 @@ pub mod system {
 pub mod remote {
     pub use crate::commands::{SwitchChannel};
 
-    pub use crate::v5::meta::V5ControllerChannel;
+    pub use crate::v5::V5ControllerChannel;
 }
 /// Structs in this crate will be used a lot, so they are shortened.
 pub mod file {
@@ -83,7 +78,7 @@ pub mod file {
         GetFileMetadataByName
     };
 
-    pub use crate::v5::meta::{
+    pub use crate::v5::{
         FileTransferFunction as FTFunction,
         FileTransferTarget as FTTarget,
         FileTransferVID as FTVID,
