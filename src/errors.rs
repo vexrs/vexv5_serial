@@ -33,7 +33,7 @@ pub enum DeviceError {
     #[error("IO Error")]
     IoError(#[from] std::io::Error),
     #[error("Serialport Error")]
-    SerialportError(#[from] serialport::Error),
+    SerialportError(#[from] tokio_serial::Error),
     #[error("The user port can not be currently written to over wireless control")]
     NoWriteOnWireless,
     #[error("The device is not a supported vex device")]

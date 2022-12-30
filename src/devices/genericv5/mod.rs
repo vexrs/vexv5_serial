@@ -4,13 +4,12 @@
 
 use super::{VEX_USB_VID, VexPortType, VEX_V5_CONTROLLER_USB_PID, VEX_V5_BRAIN_USB_PID, VexDevice, VexDeviceType};
 
-pub mod device;
 
 
 /// The information of a generic vex serial port
 #[derive(Clone, Debug)]
 pub struct VexGenericSerialPort {
-    pub port_info: serialport::SerialPortInfo,
+    pub port_info: tokio_serial::SerialPortInfo,
     pub port_type: VexPortType,
 }
 
@@ -19,8 +18,7 @@ pub struct VexGenericSerialPort {
 fn find_generic_ports() -> Result<Vec<VexGenericSerialPort>, crate::errors::DeviceError> {
 
     // Get all available serial ports
-    let ports = serialport::available_ports()?;
-    println!("{:?}", ports);
+    let ports = tokio_serial::available_ports()?;
 
     // Create a vector that will contain all vex ports
     let mut vex_ports: Vec<VexGenericSerialPort> = Vec::new();
@@ -31,7 +29,7 @@ fn find_generic_ports() -> Result<Vec<VexGenericSerialPort>, crate::errors::Devi
         // Get the serial port's info as long as it is a usb port.
         // If it is not a USB port, ignore it.
         let port_info = match port.clone().port_type {
-            serialport::SerialPortType::UsbPort(info) => info,
+            tokio_serial::SerialPortType::UsbPort(info) => info,
             _ => continue, // Skip the port if it is not USB.
         };
 
@@ -90,10 +88,9 @@ fn find_generic_ports() -> Result<Vec<VexGenericSerialPort>, crate::errors::Devi
 
 /// Finds all generic V5 devices from their ports
 pub fn find_generic_devices() -> Result<Vec<VexDevice>, crate::errors::DeviceError> {
-
-
     // Find all vex ports
     let ports = find_generic_ports()?;
+
     // Create a vector of all vex devices
     let mut vex_devices = Vec::<VexDevice>::new();
 
