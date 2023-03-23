@@ -29,7 +29,7 @@ pub trait Command {
     /// Encodes the client (computer) -> host (firmware) request
     /// 
     /// Implementation is specific to each command, but generally it returnes the data in the command's structure
-    /// parsed into a (simple_command: u8, data: Vec<u8>)
+    /// parsed into a `(simple_command: u8, data: Vec<u8>)`
     fn encode_request(self) -> Result<(u8, Vec<u8>), crate::errors::DecodeError>;
 
     /// Decodes a host (firmware) -> client (computer) response
