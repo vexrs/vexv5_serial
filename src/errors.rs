@@ -38,6 +38,14 @@ pub enum DeviceError {
     NoWriteOnWireless,
     #[error("The device is not a supported vex device")]
     InvalidDevice, 
+    #[error("Bluetooth Error")]
+    BluetoothError(#[from] bluest::Error),
+    #[error("No Bluetooth Adapter Found")]
+    NoBluetoothAdapter,
+    #[error("Not connected to the device")]
+    NotConnected,
+    #[error("Invalid Magic Number")]
+    InvalidMagic
 }
 
 /// A V5 device can respond with various different acknowledgements.
