@@ -6,9 +6,12 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+# We depend on this because for some reason it fixes an issue with tokio-serial.
 serialport = "4.2.0"
-tokio-serial = "5.4.0"
-
+tokio-serial = "5.4.4"
+tokio = { version = "1.23.0", features = ["full"] }
+tokio-stream = "0.1.11"
+bluest = "0.5.3"
 anyhow = "1.0.0"
 crc = "3.0.0"
 bitflags = "1.3.2"

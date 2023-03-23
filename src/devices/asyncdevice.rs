@@ -1,20 +1,22 @@
-//! A generic V5 device with async support.
-
-use std::io::{Read, Write};
+//! Implements an async compatible device.
 
 
-/// The representation of a V5 device
-pub struct Device<S: Read + Write, U: Read+Write> {
+use std::pin::Pin;
+use tokio::io::{AsyncReadExt, AsyncWriteExt, AsyncRead, AsyncWrite};
+
+
+/// The representation of a V5 device that supports async.
+pub struct AsyncDevice<S: AsyncReadExt + AsyncWriteExt, U: AsyncReadExt + AsyncWriteExt> {
     system_port: S,
     user_port: Option<U>,
     read_buffer: Vec<u8>,
     user_read_size: u8,
 }
 
-impl<S: Read + Write, U: Read+Write> Device<S, U> {
+impl<S: AsyncReadExt + AsyncWriteExt + Unpin, U: AsyncReadExt + AsyncWriteExt + Unpin> AsyncDevice<S, U> {
     pub fn new(system_port: S, user_port: Option<U>) -> Self {
         
-        Device {
+        AsyncDevice {
             system_port,
             user_port,
             read_buffer: Vec::new(),
@@ -23,10 +25,10 @@ impl<S: Read + Write, U: Read+Write> Device<S, U> {
     }
 
     /// Returns true if this device is a controller
-    pub fn is_controller(&mut self) -> Result<bool, crate::errors::DecodeError> {
+    pub async fn is_controller(&mut self) -> Result<bool, crate::errors::DecodeError> {
         // Get the vex system info
         // Return true if this is a controller
-        Ok(match self.send_request(crate::system::GetSystemVersion())?.product_type {
+        Ok(match self.send_request(crate::system::GetSystemVersion()).await?.product_type {
             crate::system::VexProductType::V5Brain(_) => false,
             crate::system::VexProductType::V5Controller(_) => true,
         })
@@ -38,16 +40,16 @@ impl<S: Read + Write, U: Read+Write> Device<S, U> {
     }
 
     /// Sends a command and recieves its response
-    pub fn send_request<C: crate::commands::Command + Copy>(&mut self, command: C) -> Result<C::Response, crate::errors::DecodeError> {
+    pub async fn send_request<C: crate::commands::Command + Copy>(&mut self, command: C) -> Result<C::Response, crate::errors::DecodeError> {
         // Send the command over the system port
-        self.send_command(command)?;
+        self.send_command(command).await?;
         
         // Wait for the response
-        self.response_for::<C>(std::time::Duration::new(crate::devices::SERIAL_TIMEOUT_SECONDS, crate::devices::SERIAL_TIMEOUT_NS))
+        self.response_for::<C>(std::time::Duration::new(crate::devices::SERIAL_TIMEOUT_SECONDS, crate::devices::SERIAL_TIMEOUT_NS)).await
     }
 
     /// Sends a command
-    pub fn send_command<C: crate::commands::Command + Copy>(&mut self, command: C) -> Result<(), crate::errors::DecodeError> {
+    pub async fn send_command<C: crate::commands::Command + Copy>(&mut self, command: C) -> Result<(), crate::errors::DecodeError> {
 
         // Encode the command
         let encoded = command.encode_request()?;
@@ -64,12 +66,12 @@ impl<S: Read + Write, U: Read+Write> Device<S, U> {
         };
         
         // Write the command to the serial port
-        match self.system_port.write_all(&packet) {
+        match self.system_port.write_all(&packet).await {
             Ok(_) => (),
             Err(e) => return Err(crate::errors::DecodeError::IoError(e))
         };
 
-        match self.system_port.flush() {
+        match self.system_port.flush().await {
             Ok(_) => (),
             Err(e) => return Err(crate::errors::DecodeError::IoError(e))
         };
@@ -78,7 +80,7 @@ impl<S: Read + Write, U: Read+Write> Device<S, U> {
     }
 
     /// Recieves a response for a command
-    pub fn response_for<C: crate::commands::Command + Copy>(&mut self, timeout: std::time::Duration) -> Result<C::Response, crate::errors::DecodeError> {
+    pub async fn response_for<C: crate::commands::Command + Copy>(&mut self, timeout: std::time::Duration) -> Result<C::Response, crate::errors::DecodeError> {
         // We need to wait to recieve the header of a packet.
         // The header should be the bytes [0xAA, 0x55]
 
@@ -107,7 +109,7 @@ impl<S: Read + Write, U: Read+Write> Device<S, U> {
 
             // Recieve a single bytes
             let mut b: [u8; 1] = [0];
-            match self.system_port.read_exact(&mut b) { // Do some match magic to convert the error types
+            match self.system_port.read_exact(&mut b).await { // Do some match magic to convert the error types
                 Ok(v) => Ok(v),
                 Err(e) => Err(crate::errors::DecodeError::IoError(e)),
             }?;
@@ -129,7 +131,7 @@ impl<S: Read + Write, U: Read+Write> Device<S, U> {
 
         // Read int he next two bytes
         let mut b: [u8; 2] = [0; 2];
-        match self.system_port.read_exact(&mut b) { // Do some match magic to convert the error types
+        match self.system_port.read_exact(&mut b).await { // Do some match magic to convert the error types
             Ok(v) => Ok(v),
             Err(e) => Err(crate::errors::DecodeError::IoError(e)),
         }?;
@@ -143,7 +145,7 @@ impl<S: Read + Write, U: Read+Write> Device<S, U> {
         let length = if 0x56 == command && b[1] & 0x80 == 0x80 {
             // Read the lower bytes
             let mut bl: [u8; 1] = [0];
-            match self.system_port.read_exact(&mut bl) { // Do some match magic to convert the error types
+            match self.system_port.read_exact(&mut bl).await { // Do some match magic to convert the error types
                 Ok(v) => Ok(v),
                 Err(e) => Err(crate::errors::DecodeError::IoError(e)),
             }?;
@@ -158,7 +160,7 @@ impl<S: Read + Write, U: Read+Write> Device<S, U> {
         let mut payload: Vec<u8> = vec![0; length as usize];
         // DO NOT CHANGE THIS TO READ. read_exact is required to suppress
         // CRC errors and missing data.
-        match self.system_port.read_exact(&mut payload) { // Do some match magic to convert the error types
+        match self.system_port.read_exact(&mut payload).await { // Do some match magic to convert the error types
             Ok(v) => Ok(v),
             Err(e) => Err(crate::errors::DecodeError::IoError(e)),
         }?;
@@ -168,7 +170,7 @@ impl<S: Read + Write, U: Read+Write> Device<S, U> {
     }
 
     /// Reads from the user program serial port over the system port
-    pub fn read_serial(&mut self, buf: &mut [u8]) -> Result<usize, crate::errors::DecodeError> {
+    pub async fn read_serial(&mut self, buf: &mut [u8]) -> Result<usize, crate::errors::DecodeError> {
         
         // Optimization: Only read more bytes from the brain if we need them. This allows usages
         // that use small reads to be much faster.
@@ -180,7 +182,7 @@ impl<S: Read + Write, U: Read+Write> Device<S, U> {
             let payload = vec![crate::v5::V5ControllerChannel::Download as u8, u8::min(0x40, self.user_read_size)];
 
             // Send the extended command 0x27
-            let res = self.send_request(crate::commands::Extended(0x27, &payload))?;
+            let res = self.send_request(crate::commands::Extended(0x27, &payload)).await?;
 
             // Ensure that the response is for the correct command
             if res.0 != 0x27 {
@@ -215,39 +217,55 @@ impl<S: Read + Write, U: Read+Write> Device<S, U> {
 
 }
 
-impl<S, U> std::io::Read for Device<S, U>
-where S: Read + Write, U: Read + Write {
-    
-    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+impl<S: AsyncReadExt + AsyncWriteExt, U: AsyncReadExt + AsyncWriteExt> Unpin for AsyncDevice<S, U> {}
 
+impl<S, U> AsyncRead for AsyncDevice<S, U>
+where S: AsyncReadExt + AsyncWriteExt + AsyncRead, U: AsyncReadExt + AsyncWriteExt + AsyncRead + Unpin {
+    fn poll_read(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut tokio::io::ReadBuf<'_>,
+    ) -> std::task::Poll<std::io::Result<()>> {
         // If the user port is available, then just read from it
-        if let Some(p) = &mut self.user_port {
-            p.read(buf)
+        if let Some(ref mut p) = self.user_port {
+            AsyncRead::poll_read(Pin::new(p), cx, buf)
         } else {
-            // If not, then delegate to the read_serial
-            match self.read_serial(buf) {
-                Ok(v) => Ok(v),
-                Err(e) => Err(std::io::Error::new(std::io::ErrorKind::Other, e))
-            }
+            // If not, then error
+            std::task::Poll::Ready(Err(std::io::Error::new(std::io::ErrorKind::Other, crate::errors::DeviceError::NoWriteOnWireless)))
         }
     }
 }
 
-impl<S, U> std::io::Write for Device<S, U>
-where S: Read + Write, U: Read + Write {
-    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        if let Some(p) = &mut self.user_port {
-            p.write(buf)
+
+
+impl<S, U> AsyncWrite for AsyncDevice<S, U>
+where S: AsyncReadExt + AsyncWriteExt, U: AsyncReadExt + AsyncWriteExt + Unpin {
+
+    fn poll_write(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &[u8],
+    ) -> std::task::Poll<Result<usize, std::io::Error>> {
+        if let Some(ref mut p) = self.user_port {
+            AsyncWrite::poll_write(Pin::new(p), cx, buf)
         } else {
-            Err(std::io::Error::new(std::io::ErrorKind::Other, crate::errors::DeviceError::NoWriteOnWireless))
+            std::task::Poll::Ready(Err(std::io::Error::new(std::io::ErrorKind::Other, crate::errors::DeviceError::NoWriteOnWireless)))
         }
     }
 
-    fn flush(&mut self) -> std::io::Result<()> {
-        if let Some(p) = &mut self.user_port {
-            p.flush()
+    fn poll_flush(mut self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<Result<(), std::io::Error>> {
+        if let Some(ref mut p) = self.user_port {
+            AsyncWrite::poll_flush(Pin::new(p), cx)
         } else {
-            Err(std::io::Error::new(std::io::ErrorKind::Other, crate::errors::DeviceError::NoWriteOnWireless))
+            std::task::Poll::Ready(Err(std::io::Error::new(std::io::ErrorKind::Other, crate::errors::DeviceError::NoWriteOnWireless)))
+        }
+    }
+
+    fn poll_shutdown(mut self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<Result<(), std::io::Error>> {
+        if let Some(ref mut p) = self.user_port {
+            AsyncWrite::poll_shutdown(Pin::new(p), cx)
+        } else {
+            std::task::Poll::Ready(Err(std::io::Error::new(std::io::ErrorKind::Other, crate::errors::DeviceError::NoWriteOnWireless)))
         }
     }
 }
