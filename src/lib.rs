@@ -60,7 +60,7 @@ pub mod remote {
 
     pub use crate::v5::V5ControllerChannel;
 }
-/// Structs in this crate will be used a lot, so they are shortened.
+/// Structs in this crate will be used a lot, so FileTransfer is shortened to FT
 pub mod file {
     pub use crate::commands::{
         FileTransferExit as FTExit,
@@ -86,9 +86,9 @@ pub mod file {
 /// Vex uses CRC16/XMODEM as the CRC16.
 pub const VEX_CRC16: Algorithm<u16> = crc::CRC_16_XMODEM;
 
-/// Vex uses a CRC32 that I found on page
-/// 6 of this document: 
+/// Vex uses a CRC32 that I found on page 6 of this document: 
 /// <https://www.matec-conferences.org/articles/matecconf/pdf/2016/11/matecconf_tomsk2016_04001.pdf>
+/// I literally just discovered it by guessing and checking against the PROS implementation.
 pub const VEX_CRC32: Algorithm<u32> = Algorithm {
     poly: 0x04C11DB7,
     init: 0x00000000,

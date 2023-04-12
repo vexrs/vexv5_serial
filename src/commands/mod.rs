@@ -26,13 +26,13 @@ pub use remote::SwitchChannel;
 /// A command trait that every command implements
 pub trait Command {
     type Response;
-    /// Encodes the client (computer) -> host (firmware) request
+    /// Encodes the client (computer) -> host (vexos) request
     /// 
     /// Implementation is specific to each command, but generally it returnes the data in the command's structure
     /// parsed into a `(simple_command: u8, data: Vec<u8>)`
     fn encode_request(self) -> Result<(u8, Vec<u8>), crate::errors::DecodeError>;
 
-    /// Decodes a host (firmware) -> client (computer) response
+    /// Decodes a host (vexos) -> client (computer) response
     /// 
     /// # Arguments
     /// 

@@ -11,8 +11,8 @@ use super::Command;
 /// 
 /// # Members
 /// 
-/// * `0` - The extended command id
-/// * `1` - The payload of the extended command
+/// * `0` - The extended command id as a [u8]
+/// * `1` - The payload of the extended command as a reference to a slice of [u8]s
 /// 
 /// # Examples
 /// No examples are provided here. For implementation details, see a basic command such as `KVRead` to see how this can be used.
@@ -122,6 +122,6 @@ impl<'a> Command for Extended<'a> {
 /// 
 /// # Members
 /// 
-/// * `0` - The command id of the recieved response
-/// * `1` - The payload of the recieved response
+/// * `0` - The command id of the recieved response as a [u8]
+/// * `1` - The payload of the recieved response as a [Vec<u8>]
 pub struct ExtendedResponse(pub u8, pub Vec<u8>);
