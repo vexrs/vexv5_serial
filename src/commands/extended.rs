@@ -123,5 +123,5 @@ impl<'a> Command for Extended<'a> {
 /// # Members
 /// 
 /// * `0` - The command id of the recieved response as a [u8]
-/// * `1` - The payload of the recieved response as a [Vec<u8>]
+/// * `1` - The payload of the recieved response as a [`Vec<u8>`]
 pub struct ExtendedResponse(pub u8, pub Vec<u8>);
